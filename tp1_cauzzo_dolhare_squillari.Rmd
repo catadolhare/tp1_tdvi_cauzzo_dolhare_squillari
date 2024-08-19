@@ -41,25 +41,57 @@ summary(sample_datos)
 plot(sample_datos$Departure.Delay.in.Minutes, sample_datos$Arrival.Delay.in.Minutes, main = "Departure Delay vs. Arrival Delay", xlab = "Departure delay en minutos", ylab = "Arrival delay en minutos")
 ```
 ```{r}
-install.packages("ggplot2")
-library(ggplot2)
-```
-```{r}
-ggplot(sample_datos, aes(x = Departure.Delay.in.Minutes, fill = factor(satisfaction))) +
-  geom_histogram(position = "dodge", bins = 30, alpha = 0.7) +
-  labs(title = "Distribución del Departure Delay según Satisfaction",
-       x = "Departure Delay",
-       y = "Frecuencia",
-       fill = "Satisfaction") +
-  theme_minimal()
+#install.packages("GGally")
+library(GGally)
+
+ggpairs(iris,                 # Data frame
+        columns = 1:4,        # Columnas
+        aes(color = Species,  # Color por grupo (var. categórica)
+            alpha = 0.5))     # Transparencia 
+
 ```
 
 ```{r}
-install.packages("corrplot")
+#install.packages("ggplot2")
+library(ggplot2)
+```
+```{r}
+library(ggplot2)
+
+# Crear el gráfico de densidad superpuesto
+ggplot(sample_datos, aes(x = Departure.Delay.in.Minutes, fill = satisfaction, color = satisfaction)) +
+  geom_density(alpha = 0.5) +
+  scale_fill_manual(values = c("red", "blue")) +
+  scale_color_manual(values = c("red", "blue")) +
+  labs(x = "Departure Delay in Minutes", 
+       y = "Density", 
+       fill = "Satisfaction",
+       color = "Satisfaction",
+       title = "Densidad de Departure Delay in Minutes segn Satisfaccion") +
+  theme_minimal()
+
+```
+```{r}
+ggplot(data = sample_datos) +
+  geom_histogram(mapping = aes(x = Flight.Distance, fill = Type.of.Travel),
+                 colour = "black") +
+  scale_fill_viridis_d() +
+  facet_wrap(~ Type.of.Travel)
+```
+
+```{r}
+#install.packages("corrplot")
 library(corrplot)
 numeric_data <- sample_datos[, sapply(sample_datos, is.numeric)]
 cor_matrix <- cor(numeric_data)
-corrplot(cor_matrix, method = "color")
+corrplot(cor_matrix, method = "color", 
+         tl.col = "black", tl.srt = 45, tl.cex = 0.5,  # Ajustes de etiquetas
+         cl.ratio = 0.2,  # Ajustar el tamaño de las celdas
+         addgrid.col = "black", # Añadir color a las líneas de la cuadrícula
+         addCoef.col = "black",
+         number.cex = 0.3)  
+
+
 ```
 
 
@@ -99,11 +131,11 @@ predictions
 ```
 
 ```{r}
-install.packages("stats")
-install.packages("utils")
-install.packages("ROCR")
-library(stats)
-library(utils)
-library(ROCR)
-ConfusionMatrix(predictions, testeo$satisfaction)
+#install.packages("stats")
+#install.packages("utils")
+#install.packages("ROCR")
+#library(stats)
+#library(utils)
+#library(ROCR)
+#ConfusionMatrix(predictions, testeo$satisfaction)
 ```
