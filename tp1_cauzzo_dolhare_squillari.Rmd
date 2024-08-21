@@ -13,7 +13,7 @@ El siguiente conjunto de datos presenta información acerca de una encuesta de s
 
 -   Justificar la elección del conjunto de datos para el uso de árboles de decisión.
 
-*2. Preparación de los datos*
+**2. Preparación de los datos**
 
 ```{r}
 datos_train <- read.csv("train.csv")
@@ -208,7 +208,7 @@ hist(onlineb_insatisfecho,
 ```
 Vemos que las distribuciones entre ambos son diferentes por lo que entendemos a "online boarding" como una variable influyente en la satisfacción del pasajero. Tiene sentido el grafico ya que los pasajeros satisfechos puntuan con una nota alta el online boarding mientras que los pasajeros insatisfechos puntuan con una nota más baja.
 
-*3. Construcción de un árbol de decisión básico*
+**3. Construcción de un árbol de decisión básico**
 
 ```{r}
 entrenamiento <- sample_datos[1:35000,]
@@ -241,7 +241,7 @@ En el nodo raiz encontramos el 100% de los datos y vemos que el 44% se correspon
 Volviendo a la rama en donde el online boarding >4, la otra mitad de los datos caen en un primer nodo que predomina la satisfacción y luego los divide por Inflight entertainment. Si esta es <4, caen en un nodo donde predomina la clase insatisfecha y los divide por inflight wifi service. Si es >=5 cae en una hoja terminal de color muy puro ya que el 100% de los datos de entrenamiento que caen aca son pasajeros satisfechos. Si el inflight wifi service <5, cae en otro nodo que se divide por inflight wifi service >=1, cae en insatisfecho ya que solo el 34% de los datos son de pasajeros satisfechos. Sino, cae en un nodo completamente puro ya que el 100% de los datos son satisfechos.
 Si el inflight entertainment es <=4, cae en un nodo donde predomina la clase satisfecha y de allí los divide por la variable leg room service. Si esta es >=4, cae en una hoja terminal en la que predomina la clase satisfecha. Esta hoja es de un color mayoritariamente puro ya que el 91% de los datos que caen aqui son de pasajeros satisfechos. Por el otro lado, si el leg room service <4 cae en un nodo donde mayoritariamente son pasajeros satisfechos. No obstante no es un nodo de color puro por lo que no se puede predecir con exactitud la conformidad del pasajero en cuanto al servicio brindado por la aerolinea. Asimismo, en este nodo se evalua que la varibale food and drink. Si esta es de <4, cae en una hoja terminal que no tiene un color puro porque solamente el 8% de los pasajeros estan satisfechos. Por ultimo, si food and drink >=4, cae en una hoja terminal no tan pura pero que predice como satisfechos el 71% de los pasajeros.
 
-*4. Evaluación del árbol de decisión básico*
+**4. Evaluación del árbol de decisión básico**
 
 ```{r}
 predictions_clase <- predict(tree, newdata = testeo, type = "class")
@@ -273,3 +273,4 @@ F1_Score(y_pred = predictions_clase, y_true = testeo$satisfaction, positive = 1)
 ```{r}
 AUC(y_pred = predictions_clase, y_true = testeo$satisfaction)
 ```
+**5. Optimización del modelo**
