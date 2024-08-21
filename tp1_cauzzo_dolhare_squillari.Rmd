@@ -230,6 +230,8 @@ tree <- rpart(formula = satisfaction ~ Flight.Distance + Inflight.wifi.service +
               method = "class")
 tree$control
 ```
+Dentro de los hiperparametros que toma el árbol por defecto nos encontramos que minsplit, que es el número minimo de observaciones para que se pueda dividir un nodo, en este caso necesitamos un minimo de 20 observaciones. En cuanto a minbucket, que es el numero de minimo de observaciones en una hoja, nuestro arbol necesita 7 observaciones. Evita que las hojas del arbol tenga muy pocas observaciones y logra que no tengamos un modelo overfitted. El hiperparametro cp, es el parametro de complejidad para la poda del arbol. Es de 0.01 por lo que significa que una divisi;on en el arbol debe reducir en al menos 1% para ser considerada util. 
+Maxdepth es la maxima produnfidad permitida para la construcción del árbol y en este caso, puede tener hasta 30 niveles.Cuanto más grande el árbol mejor se ajusta a los datos pero puede generar overfitting. Por otro lado, xval es el numero de grupos para validación cruzada.
 
 ```{r}
 library(rpart.plot)
