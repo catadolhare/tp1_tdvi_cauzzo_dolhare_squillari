@@ -244,15 +244,32 @@ Si el inflight entertainment es <=4, cae en un nodo donde predomina la clase sat
 *4. Evaluación del árbol de decisión básico*
 
 ```{r}
-predictions <- predict(tree, newdata = testeo, type = "class")
-predictions
+predictions_clase <- predict(tree, newdata = testeo, type = "class")
+predictions_prob <- predict(tree, newdata = testeo, type = "prob")
 ```
 
 ```{r}
-#install.packages("caret")
-#install.packages("recipes")
-#library(recipes)
-#library(caret)
-
-#matriz_confusion <- confusionMatrix(predictions, testeo$satisfaction)
+#install.packages("MLmetrics")
+library(MLmetrics)
+```
+```{r}
+ConfusionMatrix(y_pred = predictions_clase, y_true = testeo$satisfaction)
+```
+```{r}
+Accuracy(y_pred = predictions_clase, y_true = testeo$satisfaction)
+```
+```{r}
+Precision(y_pred = predictions_clase, y_true = testeo$satisfaction)
+Precision(y_pred = predictions_clase, y_true = testeo$satisfaction, positive = 1)
+```
+```{r}
+Recall(y_pred = predictions_clase, y_true = testeo$satisfaction)
+Recall(y_pred = predictions_clase, y_true = testeo$satisfaction, positive = 1)
+```
+```{r}
+F1_Score(y_pred = predictions_clase, y_true = testeo$satisfaction)
+F1_Score(y_pred = predictions_clase, y_true = testeo$satisfaction, positive = 1)
+```
+```{r}
+AUC(y_pred = predictions_clase, y_true = testeo$satisfaction)
 ```
