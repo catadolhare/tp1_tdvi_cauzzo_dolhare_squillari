@@ -7,7 +7,9 @@ output:
   pdf_document: default
 ---
 
-*1. Introducción al problema* El siguiente conjunto de datos presenta información acerca de una encuesta de satisfacción a pasageros de una cierta aerolinea. Obtuvimos este dataset de Kaggle, el cual cuenta con un conjunto de train con 104000 datos, representando el 80% del data set, y un conjunto de test con 26000 datos, representando el 20% del data set. Este data set cuenta con 23 variables, como "Type of travel", "Class", "Flight distance", "Departure Delay in Minutes", "Arrival Delay in Minutes". Principalmente, cuenta con "Satisfaction", variable categorica que puede tomar dos opciones: "Satisfaction" o "neutral or dissatisfaction".Con toda esta información, intentaremos predecir la satisfacción de un pasajero dado las respuesta a las variables.
+**1. Introducción al problema**
+
+El siguiente conjunto de datos presenta información acerca de una encuesta de satisfacción a pasageros de una cierta aerolinea. Obtuvimos este dataset de Kaggle, el cual cuenta con un conjunto de train con 104000 datos, representando el 80% del data set, y un conjunto de test con 26000 datos, representando el 20% del data set. Este data set cuenta con 23 variables, como "Type of travel", "Class", "Flight distance", "Departure Delay in Minutes", "Arrival Delay in Minutes". Principalmente, cuenta con "Satisfaction", variable categorica que puede tomar dos opciones: "Satisfaction" o "neutral or dissatisfaction".Con toda esta información, intentaremos predecir la satisfacción de un pasajero dado las respuesta a las variables.
 
 -   Justificar la elección del conjunto de datos para el uso de árboles de decisión.
 
@@ -20,7 +22,6 @@ datos_test <- read.csv("test.csv")
 
 ```{r}
 datos<-rbind(datos_train, datos_test)
-datos
 ```
 
 ```{r}
@@ -40,41 +41,16 @@ summary(sample_datos)
 ```{r}
 plot(sample_datos$Departure.Delay.in.Minutes, sample_datos$Arrival.Delay.in.Minutes, main = "Departure Delay vs. Arrival Delay", xlab = "Departure delay en minutos", ylab = "Arrival delay en minutos")
 ```
-```{r}
-#install.packages("GGally")
-library(GGally)
-
-ggpairs(iris,                 # Data frame
-        columns = 1:4,        # Columnas
-        aes(color = Species,  # Color por grupo (var. categórica)
-            alpha = 0.5))     # Transparencia 
-
-```
 
 ```{r}
 #install.packages("ggplot2")
 library(ggplot2)
 ```
-```{r}
-library(ggplot2)
 
-# Crear el gráfico de densidad superpuesto
-ggplot(sample_datos, aes(x = Departure.Delay.in.Minutes, fill = satisfaction, color = satisfaction)) +
-  geom_density(alpha = 0.5) +
-  scale_fill_manual(values = c("red", "blue")) +
-  scale_color_manual(values = c("red", "blue")) +
-  labs(x = "Departure Delay in Minutes", 
-       y = "Density", 
-       fill = "Satisfaction",
-       color = "Satisfaction",
-       title = "Densidad de Departure Delay in Minutes segn Satisfaccion") +
-  theme_minimal()
-
-```
 ```{r}
 ggplot(data = sample_datos) +
-  geom_histogram(mapping = aes(x = Flight.Distance, fill = Type.of.Travel),
-                 colour = "black") +
+  geom_histogram(mapping = aes(x = satisfaction, fill = Type.of.Travel),
+                 colour = "black", binwidth = 0.5) +
   scale_fill_viridis_d() +
   facet_wrap(~ Type.of.Travel)
 ```
@@ -90,8 +66,59 @@ corrplot(cor_matrix, method = "color",
          addgrid.col = "black", # Añadir color a las líneas de la cuadrícula
          addCoef.col = "black",
          number.cex = 0.3)  
+```
+```{r, echo=FALSE}
+par(mfrow = c(1, 2), mar = c(5, 5, 4, 2), cex = 1.2)
 
+# Filtrar los datos por nivel de satisfacción
+delay_satisfecho <- sample_datos$Departure.Delay.in.Minutes[sample_datos$satisfaction == 1]
+delay_insatisfecho <- sample_datos$Departure.Delay.in.Minutes[sample_datos$satisfaction == 0]
 
+hist(delay_satisfecho, 
+     probability = TRUE, 
+     main = "Satisfechos", 
+     xlab = "Departure Delay in Minutes", 
+     xlim = c(0, max(sample_datos$Departure.Delay.in.Minutes, na.rm = TRUE)), 
+     ylim = c(0, 0.04), 
+     col = "red", 
+     border = "black")
+
+# Histograma para los clientes insatisfechos
+hist(delay_insatisfecho, 
+     probability = TRUE, 
+     main = "Insatisfechos", 
+     xlab = "Departure Delay in Minutes", 
+     xlim = c(0, max(sample_datos$Departure.Delay.in.Minutes, na.rm = TRUE)), 
+     ylim = c(0, 0.04), 
+     col = "blue", 
+     border = "black")
+```
+
+```{r, echo=FALSE}
+par(mfrow = c(1, 2), mar = c(5, 5, 4, 2), cex = 1.2)
+
+# Filtrar los datos por nivel de satisfacción
+arrival_satisfecho <- sample_datos$Arrival.Delay.in.Minutes[sample_datos$satisfaction == 1]
+arrival_insatisfecho <- sample_datos$Arrival.Delay.in.Minutes[sample_datos$satisfaction == 0]
+
+hist(arrival_satisfecho, 
+     probability = TRUE, 
+     main = "Satisfechos", 
+     xlab = "Arrival Delay in Minutes", 
+     xlim = c(0, max(sample_datos$Arrival.Delay.in.Minutes, na.rm = TRUE)), 
+     ylim = c(0, 0.04), 
+     col = "red", 
+     border = "black")
+
+# Histograma para los clientes insatisfechos
+hist(arrival_insatisfecho, 
+     probability = TRUE, 
+     main = "Insatisfechos", 
+     xlab = "Arrival Delay in Minutes", 
+     xlim = c(0, max(sample_datos$Arrival.Delay.in.Minutes, na.rm = TRUE)), 
+     ylim = c(0, 0.04), 
+     col = "blue", 
+     border = "black")
 ```
 
 
@@ -112,7 +139,7 @@ library(rpart)
 ```
 
 ```{r}
-tree <- rpart(formula = satisfaction ~ ., 
+tree <- rpart(formula = satisfaction ~ Flight.Distance + Inflight.wifi.service + Ease.of.Online.booking + Food.and.drink + Online.boarding + Seat.comfort + Inflight.entertainment + On.board.service + Leg.room.service + Baggage.handling + Checkin.service + Inflight.service + Cleanliness, 
               data = entrenamiento, 
               method = "class")
 tree$control
@@ -131,11 +158,10 @@ predictions
 ```
 
 ```{r}
-#install.packages("stats")
-#install.packages("utils")
-#install.packages("ROCR")
-#library(stats)
-#library(utils)
-#library(ROCR)
-#ConfusionMatrix(predictions, testeo$satisfaction)
+#install.packages("caret")
+#install.packages("recipes")
+#library(recipes)
+#library(caret)
+
+#matriz_confusion <- confusionMatrix(predictions, testeo$satisfaction)
 ```
