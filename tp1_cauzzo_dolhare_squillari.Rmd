@@ -274,3 +274,26 @@ F1_Score(y_pred = predictions_clase, y_true = testeo$satisfaction, positive = 1)
 AUC(y_pred = predictions_clase, y_true = testeo$satisfaction)
 ```
 **5. Optimización del modelo**
+```{r}
+valores_maxdepth <- c(10, 15, 20, 25, 30)
+valores_minsplit <- c(5, 10, 15, 20, 25)
+valores_minbucket <- c(1, 3, 5, 7, 9)
+valores_auc <- c()
+```
+```{r}
+for (i in 1:5){
+  for (j in 1:5){
+    for (l in 1:5){
+      tree <- rpart(formula = satisfaction ~ Flight.Distance + Inflight.wifi.service + Ease.of.Online.booking + Food.and.drink + Online.boarding + Seat.comfort + Inflight.entertainment + On.board.service + Leg.room.service + Baggage.handling + Checkin.service + Inflight.service + Cleanliness, 
+              data = entrenamiento, 
+              method = "class",
+              control = rpart.control(maxdepth = valores_maxdepth[i], minsplit = valores_minsplit[j], minbucket = valores_minbucket[l], cp = 0, xval = 0))
+      
+      predicciones <- predict(tree, newdata = validacion, type = "class")
+      auc <- AUC(y_pred = predicciones, y_true = testeo$satisfaction)
+      valores_auc <- c(valores_auc, auc)
+    }
+  }
+}
+valores_auc 
+```
