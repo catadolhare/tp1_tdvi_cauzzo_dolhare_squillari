@@ -278,22 +278,116 @@ AUC(y_pred = predictions_clase, y_true = testeo$satisfaction)
 valores_maxdepth <- c(10, 15, 20, 25, 30)
 valores_minsplit <- c(5, 10, 15, 20, 25)
 valores_minbucket <- c(1, 3, 5, 7, 9)
-valores_auc <- c()
+
 ```
 ```{r}
-for (i in 1:5){
-  for (j in 1:5){
-    for (l in 1:5){
-      tree <- rpart(formula = satisfaction ~ Flight.Distance + Inflight.wifi.service + Ease.of.Online.booking + Food.and.drink + Online.boarding + Seat.comfort + Inflight.entertainment + On.board.service + Leg.room.service + Baggage.handling + Checkin.service + Inflight.service + Cleanliness, 
-              data = entrenamiento, 
-              method = "class",
-              control = rpart.control(maxdepth = valores_maxdepth[i], minsplit = valores_minsplit[j], minbucket = valores_minbucket[l], cp = 0, xval = 0))
+buscar_hiperparametros <- function(entrenamiento, validacion, valores_maxdepth, valores_minsplit, valores_minbucket){
+  valores_auc <- c()
+  best_auc <- 0
+  best_params <- c()
+  
+  for (i in 1:5){
+    for (j in 1:5){
+      for (l in 1:5){
+        tree2 <- rpart(formula = satisfaction ~ Flight.Distance + Inflight.wifi.service + Ease.of.Online.booking + Food.and.drink + Online.boarding + Seat.comfort + Inflight.entertainment + On.board.service + Leg.room.service + Baggage.handling + Checkin.service + Inflight.service + Cleanliness, 
+                data = entrenamiento, 
+                method = "class",
+                control = rpart.control(maxdepth = valores_maxdepth[i], minsplit = valores_minsplit[j], minbucket = valores_minbucket[l], cp = 0, xval = 0))
       
-      predicciones <- predict(tree, newdata = validacion, type = "class")
-      auc <- AUC(y_pred = predicciones, y_true = testeo$satisfaction)
-      valores_auc <- c(valores_auc, auc)
+        predicciones <- predict(tree2, newdata = validacion, type = "class")
+        auc <- AUC(y_pred = predicciones, y_true = validacion$satisfaction)
+        valores_auc <- c(valores_auc, auc)
+      
+        if (!is.na(auc) && auc > best_auc){
+          best_auc <- auc
+          best_params <- c(valores_maxdepth[i], valores_minsplit[j], valores_minbucket[l])
+        }
+      }
     }
   }
+  return (list(valores_auc = valores_auc, best_auc = best_auc, best_params = best_params))
 }
-valores_auc 
+```
+```{r}
+best <- buscar_hiperparametros(entrenamiento = entrenamiento, validacion = validacion, valores_maxdepth = valores_maxdepth, valores_minsplit = valores_minsplit, valores_minbucket = valores_minbucket)
+best$valores_auc
+best$best_auc
+best$best_params
+```
+```{r}
+best_tree <- rpart(formula = satisfaction ~ Flight.Distance + Inflight.wifi.service + Ease.of.Online.booking + Food.and.drink + Online.boarding + Seat.comfort + Inflight.entertainment + On.board.service + Leg.room.service + Baggage.handling + Checkin.service + Inflight.service + Cleanliness, 
+              data = entrenamiento, 
+              method = "class",
+              control = rpart.control(maxdepth = best$best_params[1], minsplit = best$best_params[2], minbucket = best$best_params[3], cp = 0, xval = 0))
+best_predicciones <- predict(best_tree, newdata = validacion, type = "class")
+AUC(y_pred = best_predicciones, y_true = testeo$satisfaction)
+```
+
+**6. Interpretación de resultados**
+```{r}
+rpart.plot(best_tree)
+```
+```{r}
+importancia_variables <- best_tree$variable.importance
+
+importancia_variables
+```
+
+**7. Análisis del impacto de los valores faltantes**
+```{r}
+reemplazar_na <- function(data, porcentaje_na) {
+  total_filas <- nrow(data)
+  
+  for (col in colnames(data)) {
+    # Contar el número actual de NA en la columna
+    na_existentes <- sum(is.na(data[[col]]))
+    
+    # Calcular cuántos NA totales debería haber para alcanzar el porcentaje deseado
+    num_na_deseado <- round(porcentaje_na * total_filas)
+    
+    # Calcular cuántos nuevos NA se necesitan para alcanzar el porcentaje
+    nuevos_na <- num_na_deseado - na_existentes
+    
+    # Solo agregar nuevos NA si el número necesario es positivo
+    if (nuevos_na > 0) {
+      na_indices <- sample(which(!is.na(data[[col]])), size = nuevos_na)
+      data[na_indices, col] <- NA
+    }
+  }
+  return(data)
+}
+```
+```{r}
+entrenamiento_na_20 <- reemplazar_na(entrenamiento, 0.20)
+validacion_na_20 <- reemplazar_na(validacion, 0.20)
+testeo_na_20 <- reemplazar_na(testeo, 0.20)
+
+entrenamiento_na_50 <- reemplazar_na(entrenamiento, 0.50)
+validacion_na_50 <- reemplazar_na(validacion, 0.50)
+testeo_na_50 <- reemplazar_na(testeo, 0.50)
+
+entrenamiento_na_75 <- reemplazar_na(entrenamiento, 0.75)
+validacion_na_75 <- reemplazar_na(validacion, 0.75)
+testeo_na_75 <- reemplazar_na(testeo, 0.75)
+```
+```{r}
+best_na_20 <- buscar_hiperparametros(entrenamiento = entrenamiento_na_20, validacion = validacion_na_20, valores_maxdepth = valores_maxdepth, valores_minsplit = valores_minsplit, valores_minbucket = valores_minbucket)
+
+best_na_20$valores_auc
+best_na_20$best_auc
+best_na_20$best_params
+```
+```{r}
+best_na_50 <- buscar_hiperparametros(entrenamiento = entrenamiento_na_50, validacion = validacion_na_50, valores_maxdepth = valores_maxdepth, valores_minsplit = valores_minsplit, valores_minbucket = valores_minbucket)
+
+best_na_50$valores_auc
+best_na_50$best_auc
+best_na_50$best_params
+```
+```{r}
+best_na_75 <- buscar_hiperparametros(entrenamiento = entrenamiento_na_75, validacion = validacion_na_75, valores_maxdepth = valores_maxdepth, valores_minsplit = valores_minsplit, valores_minbucket = valores_minbucket)
+
+best_na_75$valores_auc
+best_na_75$best_auc
+best_na_75$best_params
 ```
