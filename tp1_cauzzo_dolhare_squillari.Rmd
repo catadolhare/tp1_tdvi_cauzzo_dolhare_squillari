@@ -275,10 +275,9 @@ AUC(y_pred = predictions_clase, y_true = testeo$satisfaction)
 ```
 **5. Optimización del modelo**
 ```{r}
-valores_maxdepth <- c(10, 15, 20, 25, 30)
-valores_minsplit <- c(5, 10, 15, 20, 25)
-valores_minbucket <- c(1, 3, 5, 7, 9)
-
+valores_maxdepth <- c(2, 5, 7, 10, 12, 15)
+valores_minsplit <- c(15, 20, 25, 30, 35)
+valores_minbucket <- c(10, 20, 30, 40, 50)
 ```
 ```{r}
 buscar_hiperparametros <- function(entrenamiento, validacion, valores_maxdepth, valores_minsplit, valores_minbucket){
@@ -286,9 +285,9 @@ buscar_hiperparametros <- function(entrenamiento, validacion, valores_maxdepth, 
   best_auc <- 0
   best_params <- c()
   
-  for (i in 1:5){
-    for (j in 1:5){
-      for (l in 1:5){
+  for (i in 1:length(valores_maxdepth)){
+    for (j in 1:length(valores_minsplit)){
+      for (l in 1:length(valores_minbucket)){
         tree2 <- rpart(formula = satisfaction ~ Flight.Distance + Inflight.wifi.service + Ease.of.Online.booking + Food.and.drink + Online.boarding + Seat.comfort + Inflight.entertainment + On.board.service + Leg.room.service + Baggage.handling + Checkin.service + Inflight.service + Cleanliness, 
                 data = entrenamiento, 
                 method = "class",
@@ -331,6 +330,28 @@ rpart.plot(best_tree)
 importancia_variables <- best_tree$variable.importance
 
 importancia_variables
+```
+```{r}
+valores_maxdepth2 <- c(2, 5, 7, 10, 12, 15)
+valores_minsplit2 <- c(15, 20, 25, 30, 35)
+valores_minbucket2 <- c(10, 20, 30, 40, 50)
+```
+```{r}
+best2 <- buscar_hiperparametros(entrenamiento = entrenamiento, validacion = validacion, valores_maxdepth = valores_maxdepth2, valores_minsplit = valores_minsplit2, valores_minbucket = valores_minbucket2)
+best2$valores_auc
+best2$best_auc
+best2$best_params 
+```
+```{r}
+best_tree2 <- rpart(formula = satisfaction ~ Flight.Distance + Inflight.wifi.service + Ease.of.Online.booking + Food.and.drink + Online.boarding + Seat.comfort + Inflight.entertainment + On.board.service + Leg.room.service + Baggage.handling + Checkin.service + Inflight.service + Cleanliness, 
+              data = entrenamiento, 
+              method = "class",
+              control = rpart.control(maxdepth = best2$best_params[1], minsplit = best2$best_params[2], minbucket = best2$best_params[3], cp = 0, xval = 0))
+best_predicciones <- predict(best_tree2, newdata = validacion, type = "class")
+AUC(y_pred = best_predicciones, y_true = testeo$satisfaction)
+```
+```{r}
+rpart.plot(best_tree2)
 ```
 
 **7. Análisis del impacto de los valores faltantes**
