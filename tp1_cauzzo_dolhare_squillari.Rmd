@@ -291,11 +291,11 @@ buscar_hiperparametros <- function(entrenamiento, validacion, valores_maxdepth, 
       
         predicciones <- predict(tree2, newdata = validacion, type = "class")
         auc <- AUC(y_pred = predicciones, y_true = validacion$satisfaction)
-        valores_auc <- c(valores_auc, auc)
+        valores_auc <<- c(valores_auc, auc)
       
         if (!is.na(auc) && auc > best_auc){
-          best_auc <- auc
-          best_params <- c(valores_maxdepth[i], valores_minsplit[j], valores_minbucket[l])
+          best_auc <<- auc
+          best_params <<- c(valores_maxdepth[i], valores_minsplit[j], valores_minbucket[l])
         }
       }
     }
@@ -373,9 +373,9 @@ rpart.plot(best_tree2)
 reemplazar_na <- function(data, porcentaje_na) {
   total_filas <- nrow(data)
   
-  for (col in colnames(data)) {
+  for (i in 1:ncol(data)) {
     # Contar el número actual de NA en la columna
-    na_existentes <- sum(is.na(data[[col]]))
+    na_existentes <- sum(is.na(data[i]))
     
     # Calcular cuántos NA totales debería haber para alcanzar el porcentaje deseado
     num_na_deseado <- round(porcentaje_na * total_filas)
@@ -385,8 +385,8 @@ reemplazar_na <- function(data, porcentaje_na) {
     
     # Solo agregar nuevos NA si el número necesario es positivo
     if (nuevos_na > 0) {
-      na_indices <- sample(which(!is.na(data[[col]])), size = nuevos_na)
-      data[na_indices, col] <- NA
+      na_indices <- sample(1:nrow(data), nuevos_na)
+      data$i[na_indices] <- NA
     }
   }
   return(data)
