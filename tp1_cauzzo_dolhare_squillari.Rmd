@@ -7,14 +7,21 @@ output:
   pdf_document: default
 ---
 
-**1. Introducción al problema**
+# 1. Introducción al problema
 
-El siguiente conjunto de datos presenta información acerca de una encuesta de satisfacción a pasageros de una cierta aerolinea. Obtuvimos este dataset de Kaggle, el cual cuenta con un conjunto de train con 104000 datos, representando el 80% del data set, y un conjunto de test con 26000 datos, representando el 20% del data set. Este data set cuenta con 23 variables, como "Type of travel", "Class", "Flight distance", "Departure Delay in Minutes", "Arrival Delay in Minutes". Principalmente, cuenta con "Satisfaction", variable categorica que puede tomar dos opciones: "Satisfaction" o "neutral or dissatisfaction".Con toda esta información, intentaremos predecir la satisfacción de un pasajero dado las respuesta a las variables.
+El siguiente conjunto de datos presenta información acerca de una encuesta de satisfacción a pasageros de una cierta aerolinea. Obtuvimos este dataset de Kaggle[^1], el cual cuenta con un conjunto de train con 104000 datos, representando el 80% del data set, y un conjunto de test con 26000 datos, representando el 20% del data set. Este data set cuenta con 23 variables, como "Type of travel", "Class", "Flight distance", "Departure Delay in Minutes", "Arrival Delay in Minutes". Principalmente, cuenta con "Satisfaction", variable categorica que puede tomar dos opciones: "Satisfaction" o "neutral or dissatisfaction".Con toda esta información, intentaremos predecir la satisfacción de un pasajero dado las respuesta a las variables.
 
--   Justificar la elección del conjunto de datos para el uso de árboles de decisión.
+Utilizamos este conjunto de datos dado que contiene diversas variables predictoras y no tiene un gran numero de datos faltantes (solo se encuentran datos faltas en una de las variables), por lo que podremos predecir un buen modelo.
 
-**2. Preparación de los datos**
+Para el siguiente trabajo se necesitan importar las siguientes librerias:
+```{r}
 
+```
+
+
+# 2. Preparación de los datos
+
+Como nuestro data set venia con dos conjuntos de datos que sumaban un total de aproximadamente 130.000 observaciones, decidimos juntar todos los datos y elegir aleatoriamente 50.000 datos. Para hacer esto y que sea repicable los datos que se eligan, utilizamos una semilla.
 ```{r}
 datos_train <- read.csv("train.csv")
 datos_test <- read.csv("test.csv")
@@ -30,6 +37,7 @@ sample_datos <- datos[sample(nrow(datos), 50000),]
 nrow(sample_datos)
 ```
 
+Para la variable satisfaction, que es lo que queremos predecir, originalmente era categorica, pero decidimos transformarla en numerica donde satisfied = 1 y neutral o disatisfied = 0. Esto lo hicimos para poder 
 ```{r}
 sample_datos$satisfaction <- as.numeric(as.factor(sample_datos$satisfaction)) - 1
 ```
@@ -291,7 +299,9 @@ buscar_hiperparametros <- function(entrenamiento, validacion, valores_maxdepth, 
                 control = rpart.control(maxdepth = valores_maxdepth[i], minsplit = valores_minsplit[j], minbucket = valores_minbucket[l], cp = 0, xval = 0))
       
         predicciones <- predict(tree2, newdata = validacion, type = "class")
-        auc <- AUC(y_pred = predicciones, y_true = validacion$satisfaction)
+        validation_satisfaction <- validacion$satisfaction
+        datos_sin_na <- na.omit(data.frame(predicciones, validation_satisfaction))
+        auc <- AUC(y_pred = datos_sin_na$predicciones, y_true = datos_sin_na$validation_satisfaction)
         valores_auc <- c(valores_auc, auc)
       
         if (!is.na(auc) && auc > best_auc){
@@ -374,31 +384,30 @@ rpart.plot(best_tree2)
 **7. Análisis del impacto de los valores faltantes**
 ```{r}
 reemplazar_na <- function(data, porcentaje_na) {
-  for (i in 1:ncol(data)) {
+  total_filas <- nrow(data)
+  
+  for (col in colnames(data)) {
     # Contar el número actual de NA en la columna
-    na_existentes <- sum(is.na(data[[i]]))
+    na_existentes <- sum(is.na(data[[col]]))
     
     # Calcular cuántos NA totales debería haber para alcanzar el porcentaje deseado
-    num_na_deseado <- round(porcentaje_na * nrow(data))
+    num_na_deseado <- round(porcentaje_na * total_filas)
     
-    # Calcular cuántos nuevos NA se necesitan para alcanzar el porcentaje
     nuevos_na <- num_na_deseado - na_existentes
     
     # Solo agregar nuevos NA si el número necesario es positivo
     if (nuevos_na > 0) {
-      # Escoger índices sin NA existentes para reemplazar
-      na_indices <- sample(which(!is.na(data[[i]])), nuevos_na)
-      data[na_indices, i] <- NA
+      na_indices <- sample(which(!is.na(data[[col]])), size = nuevos_na)
+      data[na_indices, col] <- NA
     }
   }
   return(data)
 }
-
 ```
 ```{r}
 entrenamiento_na_20 <- reemplazar_na(entrenamiento, 0.20)
 validacion_na_20 <- reemplazar_na(validacion, 0.20)
-testeo_na_20 <- reemplazar_na(testeo, 0.20)
+testeo_na_20 <- reemplazar_na(testeo, 0.01)
 
 entrenamiento_na_50 <- reemplazar_na(entrenamiento, 0.50)
 validacion_na_50 <- reemplazar_na(validacion, 0.50)
@@ -409,38 +418,12 @@ validacion_na_75 <- reemplazar_na(validacion, 0.75)
 testeo_na_75 <- reemplazar_na(testeo, 0.75)
 ```
 ```{r}
-imputar_na <- function(data) {
-  for (i in 1:ncol(data)) {
-    if (is.numeric(data[[i]])) {
-      # Imputar la media para columnas numéricas
-      data[[i]][is.na(data[[i]])] <- mean(data[[i]], na.rm = TRUE)
-    } else if (is.factor(data[[i]]) || is.character(data[[i]])) {
-      # Imputar la moda para columnas categóricas
-      moda <- names(sort(table(data[[i]]), decreasing = TRUE))[1]
-      data[[i]][is.na(data[[i]])] <- moda
-    }
-  }
-  return(data)
-}
-
-entrenamiento_na_20_imputado <- imputar_na(entrenamiento_na_20)
-validacion_na_20_imputado <- imputar_na(validacion_na_20)
-testeo_na_20_imputado <- imputar_na(testeo_na_20)
-
-best_na_20 <- buscar_hiperparametros(entrenamiento = entrenamiento_na_20_imputado, validacion = validacion_na_20_imputado, valores_maxdepth = valores_maxdepth2, valores_minsplit = valores_minsplit2, valores_minbucket = valores_minbucket2)
+best_na_20 <- buscar_hiperparametros(entrenamiento = entrenamiento_na_20, validacion = validacion_na_20, valores_maxdepth = valores_maxdepth2, valores_minsplit = valores_minsplit2, valores_minbucket = valores_minbucket2)
 
 best_na_20$valores_auc
 best_na_20$best_auc
 best_na_20$best_params
 ```
-
-```{r}
-#summary(entrenamiento_na_20) #7000NA
-#summary(validacion_na_20)  #1500NA
-summary(testeo_na_20)   #1500NA
-
-```
-
 ```{r}
 best_na_50 <- buscar_hiperparametros(entrenamiento = entrenamiento_na_50, validacion = validacion_na_50, valores_maxdepth = valores_maxdepth, valores_minsplit = valores_minsplit, valores_minbucket = valores_minbucket)
 
@@ -456,3 +439,5 @@ best_na_75$valores_auc
 best_na_75$best_auc
 best_na_75$best_params
 ```
+
+[^1]: https://www.kaggle.com/datasets/teejmahal20/airline-passenger-satisfaction
