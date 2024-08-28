@@ -376,7 +376,7 @@ rpart.plot(best_tree2)
 reemplazar_na <- function(data, porcentaje_na) {
   for (i in 1:ncol(data)) {
     # Contar el número actual de NA en la columna
-    na_existentes <- sum(is.na(data[i]))
+    na_existentes <- sum(is.na(data[[i]]))
     
     # Calcular cuántos NA totales debería haber para alcanzar el porcentaje deseado
     num_na_deseado <- round(porcentaje_na * nrow(data))
@@ -386,12 +386,14 @@ reemplazar_na <- function(data, porcentaje_na) {
     
     # Solo agregar nuevos NA si el número necesario es positivo
     if (nuevos_na > 0) {
-      na_indices <- sample(1:nrow(data), nuevos_na)
-      data$data[i][na_indices] <- NA
+      # Escoger índices sin NA existentes para reemplazar
+      na_indices <- sample(which(!is.na(data[[i]])), nuevos_na)
+      data[na_indices, i] <- NA
     }
   }
   return(data)
 }
+
 ```
 ```{r}
 entrenamiento_na_20 <- reemplazar_na(entrenamiento, 0.20)
@@ -407,12 +409,38 @@ validacion_na_75 <- reemplazar_na(validacion, 0.75)
 testeo_na_75 <- reemplazar_na(testeo, 0.75)
 ```
 ```{r}
-best_na_20 <- buscar_hiperparametros(entrenamiento = entrenamiento_na_20, validacion = validacion_na_20, valores_maxdepth = valores_maxdepth2, valores_minsplit = valores_minsplit2, valores_minbucket = valores_minbucket2, valores_auc = valores_auc_na_20, best_auc = best_auc_na_20, best_params = best_params_na_20)
+imputar_na <- function(data) {
+  for (i in 1:ncol(data)) {
+    if (is.numeric(data[[i]])) {
+      # Imputar la media para columnas numéricas
+      data[[i]][is.na(data[[i]])] <- mean(data[[i]], na.rm = TRUE)
+    } else if (is.factor(data[[i]]) || is.character(data[[i]])) {
+      # Imputar la moda para columnas categóricas
+      moda <- names(sort(table(data[[i]]), decreasing = TRUE))[1]
+      data[[i]][is.na(data[[i]])] <- moda
+    }
+  }
+  return(data)
+}
+
+entrenamiento_na_20_imputado <- imputar_na(entrenamiento_na_20)
+validacion_na_20_imputado <- imputar_na(validacion_na_20)
+testeo_na_20_imputado <- imputar_na(testeo_na_20)
+
+best_na_20 <- buscar_hiperparametros(entrenamiento = entrenamiento_na_20_imputado, validacion = validacion_na_20_imputado, valores_maxdepth = valores_maxdepth2, valores_minsplit = valores_minsplit2, valores_minbucket = valores_minbucket2)
 
 best_na_20$valores_auc
 best_na_20$best_auc
 best_na_20$best_params
 ```
+
+```{r}
+#summary(entrenamiento_na_20) #7000NA
+#summary(validacion_na_20)  #1500NA
+summary(testeo_na_20)   #1500NA
+
+```
+
 ```{r}
 best_na_50 <- buscar_hiperparametros(entrenamiento = entrenamiento_na_50, validacion = validacion_na_50, valores_maxdepth = valores_maxdepth, valores_minsplit = valores_minsplit, valores_minbucket = valores_minbucket)
 
