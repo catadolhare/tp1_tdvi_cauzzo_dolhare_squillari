@@ -15,7 +15,15 @@ Utilizamos este conjunto de datos dado que contiene diversas variables predictor
 
 Para el siguiente trabajo se necesitan importar las siguientes librerias:
 ```{r}
+#install.packages("ggplot2")
+#install.packages("corrplot")
+#install.packages("MLmetrics")
 
+library(ggplot2)
+library(corrplot)
+library(rpart)
+library(rpart.plot)
+library(MLmetrics)
 ```
 
 
@@ -37,10 +45,12 @@ sample_datos <- datos[sample(nrow(datos), 50000),]
 nrow(sample_datos)
 ```
 
-Para la variable satisfaction, que es lo que queremos predecir, originalmente era categorica, pero decidimos transformarla en numerica donde satisfied = 1 y neutral o disatisfied = 0. Esto lo hicimos para poder 
+Para la variable satisfaction, que es lo que queremos predecir, originalmente era categorica, pero decidimos transformarla en numerica donde satisfied = 1 y neutral o disatisfied = 0. Esto lo hicimos para poder analizar graficamente las variables predictoras contra satisfaction, dado que no podiamos realizarlo si esta era categorica.
 ```{r}
 sample_datos$satisfaction <- as.numeric(as.factor(sample_datos$satisfaction)) - 1
 ```
+
+Para poder ver las estadisticas descriptivas de las varibales, realizamos un summary de los datos. Este nos provee el minimo, los quartiles, la media, la mediana y el maximo de las variables numericas.
 
 ```{r}
 summary(sample_datos)
@@ -48,15 +58,10 @@ summary(sample_datos)
 ```
 A simple vista, vemos en la variable de satisfaction una mediana de 0 y una media 0.4338. Esto nos indica que hay mas pasajeros insatisfechos (0) que satisfechos (1).
 
-```{r}
-#install.packages("ggplot2")
-library(ggplot2)
-```
+Por otro lado, notamos que las variables que tiene una escala de 0 a 5 tiene mediana y media en aproximadamente 3, esto significa que en su mayoria las personas se encuentran indiferente dentro de cada categoría.
 
 Para ver si las otras variables predictoras influyen en satisfacion hicimos una matriz de correlacion. Sabemos que correlacion no implica causalidad, no obstante, es bueno para visualizar y descartar variables que no influyen directamente en la satisfación de los pasajeros.
 ```{r, echo=FALSE}
-#install.packages("corrplot")
-library(corrplot)
 numeric_data <- sample_datos[, sapply(sample_datos, is.numeric)]
 cor_matrix <- cor(numeric_data)
 corrplot(cor_matrix, method = "color", 
@@ -121,6 +126,8 @@ hist(arrival_insatisfecho,
      border = "black")
 ```
 
+En cuanto a ambos delays, notamos que no afectan a la satisfacción de una persona, dado que la distribución es muy similar entre los satisfechos y no satisfechos.
+
 ```{r, echo=FALSE}
 par(mfrow = c(1, 2), mar = c(5, 5, 4, 2), cex = 1.2)
 
@@ -176,7 +183,7 @@ hist(gate_insatisfecho,
 ```
 Al graficar estas 4 variables, podemos ver que la ditribución entre pasajeros satisfechos e insatisfechos es muy similar por lo que concluimos que no impactan en lo que queremos predecir.
 
-El siguiente grafico muestra la relación entre la variable "Type of Travel" y "satisfaction":
+Por la misma razon de que correlación on implica causalidad, decidimos probar en algunas variables si existia este tipo de relación. El siguiente grafico muestra la relación entre la variable "Type of Travel" y "satisfaction":
 ```{r, echo=FALSE}
 library(ggplot2)
 ggplot(data = sample_datos) +
@@ -185,7 +192,7 @@ ggplot(data = sample_datos) +
   scale_fill_viridis_d() +
   facet_wrap(~ Type.of.Travel)
 ```
-Se puede concluir que las personas que viajan por placer o temas personales suelen estar más insatisfechos que los que viajan por negocios. Viendo la distribución podemos ver que es una variable que realmente influye en lo que queremos predecir. 
+En este, podemos ver que existe una clara división entre el tipo de viaje. Podemos concluir que las personas que viajan por placer o temas personales suelen estar más insatisfechos que los que viajan por negocios. Viendo la distribución podemos ver que es una variable que realmente influye en lo que queremos predecir. 
 
 En el siguiente histograma, queremos demostrar la relación entre la variable "Online boarding" y "satisfaction".
 ```{r, echo=FALSE}
@@ -216,7 +223,9 @@ hist(onlineb_insatisfecho,
 ```
 Vemos que las distribuciones entre ambos son diferentes por lo que entendemos a "online boarding" como una variable influyente en la satisfacción del pasajero. Tiene sentido el grafico ya que los pasajeros satisfechos puntuan con una nota alta el online boarding mientras que los pasajeros insatisfechos puntuan con una nota más baja.
 
-**3. Construcción de un árbol de decisión básico**
+# 3. Construcción de un árbol de decisión básico
+
+Para construir el arbol, dividimos nuestro conjunto de datos en entrenamiento, con 70% de los datos, validación, con 15% de los datos, y testo, con 15% de los datos. Como nuestro sample de datos ya fue elegido al azar de un conjunto más grande, simplemente podemos dividir entre los respectivos porcentajes y nos seguiremos garantizando que sea aleatorio.
 
 ```{r}
 entrenamiento <- sample_datos[1:35000,]
@@ -228,9 +237,7 @@ nrow(validacion)
 nrow(testeo)
 ```
 
-```{r}
-library(rpart)
-```
+Con la librería rpart generamos un arbol de decision a partir de los datos de entrenamiento, utilizando los hiperparamentros por defecto.
 
 ```{r}
 tree <- rpart(formula = satisfaction ~ Flight.Distance + Inflight.wifi.service + Ease.of.Online.booking + Food.and.drink + Online.boarding + Seat.comfort + Inflight.entertainment + On.board.service + Leg.room.service + Baggage.handling + Checkin.service + Inflight.service + Cleanliness, 
@@ -238,15 +245,33 @@ tree <- rpart(formula = satisfaction ~ Flight.Distance + Inflight.wifi.service +
               method = "class")
 tree$control
 ```
-Dentro de los hiperparametros que toma el árbol por defecto nos encontramos que minsplit, que es el número minimo de observaciones para que se pueda dividir un nodo, en este caso necesitamos un minimo de 20 observaciones. En cuanto a minbucket, que es el numero de minimo de observaciones en una hoja, nuestro arbol necesita 7 observaciones. Evita que las hojas del arbol tenga muy pocas observaciones y logra que no tengamos un modelo overfitted. El hiperparametro cp, es el parametro de complejidad para la poda del arbol. Es de 0.01 por lo que significa que una divisi;on en el arbol debe reducir en al menos 1% para ser considerada util. 
-Maxdepth es la maxima produnfidad permitida para la construcción del árbol y en este caso, puede tener hasta 30 niveles.Cuanto más grande el árbol mejor se ajusta a los datos pero puede generar overfitting. Por otro lado, xval es el numero de grupos para validación cruzada.
+
+Dentro de los hiperparametros que toma el árbol por defecto nos encontramos que minsplit toma por defecto el valor de 20. Esto quiere decir que el numero minimo de observaciones que se necesita para dividir un nodo intermedio es de 20.
+
+En cuanto a minbucket, este toma un valor de 7. Lo que refiere a que se necesita un minimo de 7 observaciones en cada hoja de un arbol. Esto evita que las hojas del arbol tenga muy pocas observaciones y logra que no tengamos un modelo overfitted. 
+
+El hiperparametro cp, es el parametro de complejidad para la poda del arbol. Es de 0.01 por lo que significa que una división en el arbol debe reducir el error en al menos 1% para ser considerada util. 
+
+Maxdepth es la maxima produnfidad permitida para la construcción del árbol y en este caso, puede tener hasta 30 niveles. Si bien cuanto más grande el árbol mejor se ajusta a los datos, si el arbol es muy profundo, se puede generar overfitting. 
+
+Por ultimo, xval toma un valor de 10, por lo que se utilizaran 10 grupos para validación cruzada. Un mayor valor de xval te asegura una estimación más precisa pero mayor tiempo de computo.
 
 ```{r}
-library(rpart.plot)
 rpart.plot(tree)
 ```
-En el nodo raiz encontramos el 100% de los datos y vemos que el 44% se corresponde con pasajeros satisfechos. El color del nodo no es tan intenso, por lo que el nodo es tan puro. Como la clase predominante es insatisfecho, el nodo contiene un 0. El factor mas importante para determinar la satisfacción del pasajero es el online boarding y divide a los datos a la mitad en un valor <4. Caen en dos nodos diferentes, donde uno predomina la insatisfacción al tener 15% de satisfacción y en el otro predomina la satisfaccion ya que tiene un nivel del 72%. Para el lado de insatisfacción podemos ver que inflight wifi service vuelve a dividir los datos y si es >4 cae en una hoja terminal en el cual los datos que caen alli son satisfechos. Vemos que el color no es muy puro pero si los datos caen allí lo predecira como un pasajero satisfecho. En caso contrario, cae en otro nodo que predominan los insatisfechos y los vuelve a dividir inflight wifi service >=1. Si cae allí, se predecira que el pasajero esta insatisfecho ya que solo 7% son satisfechos y predomina la clase de insatisfechos. El color del bodo nos muestra que es un nodo puro y el 44% de los datos de entrenamiento van a caer allí. Caso contrario, caerá en un nodo que predecirá al pasajero como satisfecho. Este es un nodo es completamente puro ya que el 100% de los datos que caen aca son satisfechos. 
+
+En general, cada nodo cuenta con el porcentaje de datos que caen en ese nodo del total, la proporción de datos que corresponden con un dato satisfecho (satisfied = 1) y el color del nodo indica la pureza del mismo.
+
+En el nodo raiz encontramos el 100% de los datos, de los cuales el 44% se corresponde con pasajeros satisfechos. El color del nodo no es tan intenso, dado que en este se encuentran todos los datos, los satisfechos como los insatisfecho. Como la clase predominante es insatisfecho, el nodo contiene un 0. 
+
+El factor mas importante para determinar la satisfacción del pasajero es el online boarding. Este divide a los datos exactamente a la mitad dependiendo de si toman un valor <4. Si esto es asi, toman la rama de la izquierda, y si no, la de la derecha. 
+
+Por la rama de la izquierda, se encuentra un nodo donde predomina la insatisfacción, al tener 0.15 de los datos satisfechos. En este podemos ver un color más puro en comparación al nodo raiz.
+
+Caen en dos nodos diferentes, donde uno predomina la insatisfacción al tener 15% de satisfacción y en el otro predomina la satisfaccion ya que tiene un nivel del 72%. Para el lado de insatisfacción podemos ver que inflight wifi service vuelve a dividir los datos y si es >4 cae en una hoja terminal en el cual los datos que caen alli son satisfechos. Vemos que el color no es muy puro pero si los datos caen allí lo predecira como un pasajero satisfecho. En caso contrario, cae en otro nodo que predominan los insatisfechos y los vuelve a dividir inflight wifi service >=1. Si cae allí, se predecira que el pasajero esta insatisfecho ya que solo 7% son satisfechos y predomina la clase de insatisfechos. El color del bodo nos muestra que es un nodo puro y el 44% de los datos de entrenamiento van a caer allí. Caso contrario, caerá en un nodo que predecirá al pasajero como satisfecho. Este es un nodo es completamente puro ya que el 100% de los datos que caen aca son satisfechos. 
+
 Volviendo a la rama en donde el online boarding >4, la otra mitad de los datos caen en un primer nodo que predomina la satisfacción y luego los divide por Inflight entertainment. Si esta es <4, caen en un nodo donde predomina la clase insatisfecha y los divide por inflight wifi service. Si es >=5 cae en una hoja terminal de color muy puro ya que el 100% de los datos de entrenamiento que caen aca son pasajeros satisfechos. Si el inflight wifi service <5, cae en otro nodo que se divide por inflight wifi service >=1, cae en insatisfecho ya que solo el 34% de los datos son de pasajeros satisfechos. Sino, cae en un nodo completamente puro ya que el 100% de los datos son satisfechos.
+
 Si el inflight entertainment es <=4, cae en un nodo donde predomina la clase satisfecha y de allí los divide por la variable leg room service. Si esta es >=4, cae en una hoja terminal en la que predomina la clase satisfecha. Esta hoja es de un color mayoritariamente puro ya que el 91% de los datos que caen aqui son de pasajeros satisfechos. Por el otro lado, si el leg room service <4 cae en un nodo donde mayoritariamente son pasajeros satisfechos. No obstante no es un nodo de color puro por lo que no se puede predecir con exactitud la conformidad del pasajero en cuanto al servicio brindado por la aerolinea. Asimismo, en este nodo se evalua que la varibale food and drink. Si esta es de <4, cae en una hoja terminal que no tiene un color puro porque solamente el 8% de los pasajeros estan satisfechos. Por ultimo, si food and drink >=4, cae en una hoja terminal no tan pura pero que predice como satisfechos el 71% de los pasajeros.
 
 **4. Evaluación del árbol de decisión básico**
@@ -256,10 +281,6 @@ predictions_clase <- predict(tree, newdata = testeo, type = "class")
 predictions_prob <- predict(tree, newdata = testeo, type = "prob")
 ```
 
-```{r}
-#install.packages("MLmetrics")
-library(MLmetrics)
-```
 ```{r}
 ConfusionMatrix(y_pred = predictions_clase, y_true = testeo$satisfaction)
 ```
