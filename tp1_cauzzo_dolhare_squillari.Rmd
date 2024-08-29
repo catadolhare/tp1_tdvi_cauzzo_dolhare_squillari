@@ -79,24 +79,26 @@ par(mfrow = c(1, 2), mar = c(5, 5, 4, 2), cex = 1.2)
 delay_satisfecho <- sample_datos$Departure.Delay.in.Minutes[sample_datos$satisfaction == 1]
 delay_insatisfecho <- sample_datos$Departure.Delay.in.Minutes[sample_datos$satisfaction == 0]
 
-hist(delay_satisfecho, 
-     probability = TRUE, 
-     main = "Satisfechos", 
-     xlab = "Departure Delay in Minutes", 
-     xlim = c(0, max(sample_datos$Departure.Delay.in.Minutes, na.rm = TRUE)), 
-     ylim = c(0, 0.04), 
-     col = "red", 
-     border = "black")
+density_satisfecho <- density(delay_satisfecho, na.rm = TRUE)
+density_insatisfecho <- density(delay_insatisfecho, na.rm = TRUE)
 
-# Histograma para los clientes insatisfechos
-hist(delay_insatisfecho, 
-     probability = TRUE, 
-     main = "Insatisfechos", 
+# Crear el gráfico
+plot(density_satisfecho, 
+     main = "Comparación de Densidades de Retrasos por Satisfacción", 
      xlab = "Departure Delay in Minutes", 
-     xlim = c(0, max(sample_datos$Departure.Delay.in.Minutes, na.rm = TRUE)), 
-     ylim = c(0, 0.04), 
-     col = "blue", 
-     border = "black")
+     ylab = "Density", 
+     col = "red", 
+     lwd = 2, 
+     xlim = c(0, max(c(delay_satisfecho, delay_insatisfecho), na.rm = TRUE)))
+
+# Agregar la densidad del grupo insatisfecho
+lines(density_insatisfecho, col = "blue", lwd = 2)
+
+# Agregar leyenda
+legend("topright", 
+       legend = c("Satisfechos", "Insatisfechos"), 
+       col = c("red", "blue"), 
+       lwd = 2)
 ```
 
 ```{r, echo=FALSE}
@@ -240,7 +242,7 @@ nrow(testeo)
 Con la librería rpart generamos un arbol de decision a partir de los datos de entrenamiento, utilizando los hiperparamentros por defecto.
 
 ```{r}
-tree <- rpart(formula = satisfaction ~ Flight.Distance + Inflight.wifi.service + Ease.of.Online.booking + Food.and.drink + Online.boarding + Seat.comfort + Inflight.entertainment + On.board.service + Leg.room.service + Baggage.handling + Checkin.service + Inflight.service + Cleanliness, 
+tree <- rpart(formula = satisfaction ~ ., 
               data = entrenamiento, 
               method = "class")
 tree$control
@@ -314,15 +316,13 @@ buscar_hiperparametros <- function(entrenamiento, validacion, valores_maxdepth, 
   for (i in 1:length(valores_maxdepth)){
     for (j in 1:length(valores_minsplit)){
       for (l in 1:length(valores_minbucket)){
-        tree2 <- rpart(formula = satisfaction ~ Flight.Distance + Inflight.wifi.service + Ease.of.Online.booking + Food.and.drink + Online.boarding + Seat.comfort + Inflight.entertainment + On.board.service + Leg.room.service + Baggage.handling + Checkin.service + Inflight.service + Cleanliness, 
+        tree2 <- rpart(formula = satisfaction ~ ., 
                 data = entrenamiento, 
                 method = "class",
                 control = rpart.control(maxdepth = valores_maxdepth[i], minsplit = valores_minsplit[j], minbucket = valores_minbucket[l], cp = 0, xval = 0))
       
         predicciones <- predict(tree2, newdata = validacion, type = "class")
-        validation_satisfaction <- validacion$satisfaction
-        datos_sin_na <- na.omit(data.frame(predicciones, validation_satisfaction))
-        auc <- AUC(y_pred = datos_sin_na$predicciones, y_true = datos_sin_na$validation_satisfaction)
+        auc <- AUC(y_pred = datos$predicciones, y_true = datos$validation_satisfaction)
         valores_auc <- c(valores_auc, auc)
       
         if (!is.na(auc) && auc > best_auc){
@@ -343,7 +343,7 @@ best$best_auc
 best$best_params
 ```
 ```{r}
-best_tree <- rpart(formula = satisfaction ~ Flight.Distance + Inflight.wifi.service + Ease.of.Online.booking + Food.and.drink + Online.boarding + Seat.comfort + Inflight.entertainment + On.board.service + Leg.room.service + Baggage.handling + Checkin.service + Inflight.service + Cleanliness, 
+best_tree <- rpart(formula = satisfaction ~ ., 
               data = entrenamiento, 
               method = "class",
               control = rpart.control(maxdepth = best$best_params[1], minsplit = best$best_params[2], minbucket = best$best_params[3], cp = 0, xval = 0))
@@ -372,7 +372,7 @@ best2$best_auc
 best2$best_params 
 ```
 ```{r}
-best_tree2 <- rpart(formula = satisfaction ~ Flight.Distance + Inflight.wifi.service + Ease.of.Online.booking + Food.and.drink + Online.boarding + Seat.comfort + Inflight.entertainment + On.board.service + Leg.room.service + Baggage.handling + Checkin.service + Inflight.service + Cleanliness, 
+best_tree2 <- rpart(formula = satisfaction ~ ., 
               data = entrenamiento, 
               method = "class",
               control = rpart.control(maxdepth = best2$best_params[1], minsplit = best2$best_params[2], minbucket = best2$best_params[3], cp = 0, xval = 0))
@@ -406,8 +406,11 @@ rpart.plot(best_tree2)
 ```{r}
 reemplazar_na <- function(data, porcentaje_na) {
   total_filas <- nrow(data)
-  
-  for (col in colnames(data)) {
+  total_columnas <- ncol(data)  # Número total de columnas
+
+  for (i in 1:(total_columnas - 1)) {  # Iterar hasta la anteúltima columna
+    col <- colnames(data)[i]
+    
     # Contar el número actual de NA en la columna
     na_existentes <- sum(is.na(data[[col]]))
     
