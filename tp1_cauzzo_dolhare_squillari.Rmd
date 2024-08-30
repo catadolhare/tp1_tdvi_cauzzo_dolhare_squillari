@@ -398,60 +398,37 @@ best_predicciones <- predict(best_tree, newdata = testeo, type = "class")
 AUC(y_pred = best_predicciones, y_true = testeo$satisfaction)
 ```
 
+En el arbol basico (punto #3) el arbol tenia un AUC de 0.8878741 con los hiperparamentros por defecto. Este arbol optimizado toma un valor de AUC de 0.9265255. Este ultimo tiene una mejor performance dado que se eligio (dentro de un rango de valores posibles) los valores que mejores predecian la satifacción para el conjunto de validación. Notamos que el alto valor en AUC en validación no se debe a overfitting si no que se mejora la predicción del modelo, dado que el AUC en testeo es muy similar.
+
 # 6. Interpretación de resultados
 ```{r}
 rpart.plot(best_tree)
 ```
-```{r}
-importancia_variables <- best_tree$variable.importance
 
-importancia_variables
-```
+A simple vista, podemos ver que la variable predictora en el nodo raiz es la misma en ambos arboles, Online boarding < 4, y los valores encontrados en el nodo coinciden. Siguiendo por la rama de la izquierda, podemos ver que el siguiente corte es el mismo, se utiliza Inflight Wifi Service < 4, y se tienen los mismos valores en los nodos. Por la rama izquierda de este, se tiene el mismo corte de Inflight Wifi Service >= 1. Luego de este, empiezan a diferir. Vemos que si se utiliza la rama derecha luego del segundo corte, este cambia dado que aparecen nuevos cortes dados por otras variables predictoras.
+
+Hacia la derecha del nodo raiz, el nodo tiene los mismos valores en ambos arboles, pero en el arbol optimizado la variable predictora que hace el corte cambia, pasa de ser Type of Travel = Personal Travel a Inflight entretaiment < 4, y los demas cortes son distintos y en mayor cantidad.
+
 ```{r}
-valores_maxdepth2 <- c(10, 15, 20, 25, 30)
-valores_minsplit2 <- c(10, 20, 30, 40, 50)
-valores_minbucket2 <- c(100, 200, 300, 400, 500)
+importancia_variables_best <- best_tree$variable.importance
+
+importancia_variables_best
 ```
+
+Podemos ver que las variables predictoras más importantes son Online Boarding, Inflight Wifi Service y Seat Comfort. Esto se correlaciona con el grafico dado que son los primeros cortes que figuran en el arbol y son los que más cortes realizan.
+
 ```{r}
-best2 <- buscar_hiperparametros(entrenamiento = entrenamiento, validacion = validacion, valores_maxdepth = valores_maxdepth2, valores_minsplit = valores_minsplit2, valores_minbucket = valores_minbucket2)
-best2$valores_auc
-best2$best_auc
-best2$best_params 
+importancia_variables_basico <- tree$variable.importance
+
+importancia_variables_basico
 ```
-```{r}
-best_tree2 <- rpart(formula = satisfaction ~ ., 
-              data = entrenamiento, 
-              method = "class",
-              control = rpart.control(maxdepth = best2$best_params[1], minsplit = best2$best_params[2], minbucket = best2$best_params[3], cp = 0, xval = 0))
-best_predicciones <- predict(best_tree2, newdata = testeo, type = "class")
-AUC(y_pred = best_predicciones, y_true = testeo$satisfaction)
-```
-```{r}
-rpart.plot(best_tree2)
-```
-```{r}
-valores_maxdepth3 <- c(30)
-valores_minsplit3 <- c(1000)
-valores_minbucket3 <- c(1000, 2000, 3000, 4000, 5000)
-```
-```{r}
-best3 <- buscar_hiperparametros(entrenamiento = entrenamiento, validacion = validacion, valores_maxdepth = valores_maxdepth3, valores_minsplit = valores_minsplit3, valores_minbucket = valores_minbucket3)
-best3$valores_auc
-best3$best_auc
-best3$best_params 
-```
-```{r}
-best_tree3 <- rpart(formula = satisfaction ~ ., 
-              data = entrenamiento, 
-              method = "class",
-              control = rpart.control(maxdepth = best3$best_params[1], minsplit = best3$best_params[2], minbucket = best3$best_params[3], cp = 0, xval = 0))
-best_predicciones <- predict(best_tree3, newdata = testeo, type = "class")
-AUC(y_pred = best_predicciones, y_true = testeo$satisfaction)
-```
-```{r}
-rpart.plot(best_tree3)
-```
+
+Si lo comparamos con el arbol basico, notamos primero que todos aumentaron su valor en el optimizado y que aparecen las mismas categorías en ambas solo que en el optimizado se incluye Check-in service. Por otro lado, podemos ver que el orden de importancia cambia. On board service y Leg room service suben dos posiciones y  Baggage handling baja dos posiciones. Con esto, podemos ver que la importancia de las variables va a cambiar dependiendo de los hiperparametros que tomen los modelos.
+
 **7. Análisis del impacto de los valores faltantes**
+
+
+
 ```{r}
 reemplazar_na <- function(data, porcentaje_na) {
   total_filas <- nrow(data)
