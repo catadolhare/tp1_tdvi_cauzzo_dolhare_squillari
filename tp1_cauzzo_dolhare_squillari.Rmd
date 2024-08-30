@@ -238,7 +238,7 @@ testeo <- sample_datos[42501:50000,]
 Con la librería rpart generamos un arbol de decision a partir de los datos de entrenamiento, utilizando los hiperparamentros por defecto.
 
 ```{r}
-tree <- rpart(formula = satisfaction ~ ., 
+tree <- rpart(formula = satisfaction ~ Gender + Customer.Type + Age + Type.of.Travel + Class + Flight.Distance + Inflight.wifi.service + Departure.Arrival.time.convenient + Ease.of.Online.booking + Gate.location + Food.and.drink + Online.boarding + Seat.comfort + Inflight.entertainment + On.board.service + Leg.room.service + Baggage.handling + Checkin.service + Inflight.service + Cleanliness + Departure.Delay.in.Minutes + Arrival.Delay.in.Minutes, 
               data = entrenamiento, 
               method = "class")
 tree$control
@@ -312,18 +312,17 @@ buscar_hiperparametros <- function(entrenamiento, validacion, valores_maxdepth, 
   for (i in 1:length(valores_maxdepth)){
     for (j in 1:length(valores_minsplit)){
       for (l in 1:length(valores_minbucket)){
-        tree2 <- rpart(formula = satisfaction ~ ., 
+        tree2 <- rpart(formula = satisfaction ~ Gender + Customer.Type + Age + Type.of.Travel + Class + Flight.Distance + Inflight.wifi.service + Departure.Arrival.time.convenient + Ease.of.Online.booking + Gate.location + Food.and.drink + Online.boarding + Seat.comfort + Inflight.entertainment + On.board.service + Leg.room.service + Baggage.handling + Checkin.service + Inflight.service + Cleanliness + Departure.Delay.in.Minutes + Arrival.Delay.in.Minutes, 
                 data = entrenamiento, 
                 method = "class",
                 control = rpart.control(maxdepth = valores_maxdepth[i], minsplit = valores_minsplit[j], minbucket = valores_minbucket[l], cp = 0, xval = 0))
       
         predicciones <- predict(tree2, newdata = validacion, type = "class")
-        validation_satisfaction <- validacion$satisfaction
-        datos_sin_na <- na.omit(data.frame(predicciones, validation_satisfaction))
-        auc <- AUC(y_pred = datos_sin_na$predicciones, y_true = datos_sin_na$validation_satisfaction)
+
+        auc <- AUC(y_pred = predicciones, y_true = validacion$satisfaction)
         valores_auc <- c(valores_auc, auc)
       
-        if (!is.na(auc) && auc > best_auc){
+        if (auc > best_auc){
           best_auc <- auc
           best_params <- c(valores_maxdepth[i], valores_minsplit[j], valores_minbucket[l])
         }
@@ -341,11 +340,11 @@ best$best_auc
 best$best_params
 ```
 ```{r}
-best_tree <- rpart(formula = satisfaction ~ ., 
+best_tree <- rpart(formula = satisfaction ~ Gender + Customer.Type + Age + Type.of.Travel + Class + Flight.Distance + Inflight.wifi.service + Departure.Arrival.time.convenient + Ease.of.Online.booking + Gate.location + Food.and.drink + Online.boarding + Seat.comfort + Inflight.entertainment + On.board.service + Leg.room.service + Baggage.handling + Checkin.service + Inflight.service + Cleanliness + Departure.Delay.in.Minutes + Arrival.Delay.in.Minutes, 
               data = entrenamiento, 
               method = "class",
               control = rpart.control(maxdepth = best$best_params[1], minsplit = best$best_params[2], minbucket = best$best_params[3], cp = 0, xval = 0))
-best_predicciones <- predict(best_tree, newdata = validacion, type = "class")
+best_predicciones <- predict(best_tree, newdata = testeo, type = "class")
 AUC(y_pred = best_predicciones, y_true = testeo$satisfaction)
 ```
 
@@ -374,7 +373,7 @@ best_tree2 <- rpart(formula = satisfaction ~ .,
               data = entrenamiento, 
               method = "class",
               control = rpart.control(maxdepth = best2$best_params[1], minsplit = best2$best_params[2], minbucket = best2$best_params[3], cp = 0, xval = 0))
-best_predicciones <- predict(best_tree2, newdata = validacion, type = "class")
+best_predicciones <- predict(best_tree2, newdata = testeo, type = "class")
 AUC(y_pred = best_predicciones, y_true = testeo$satisfaction)
 ```
 ```{r}
@@ -396,7 +395,7 @@ best_tree3 <- rpart(formula = satisfaction ~ .,
               data = entrenamiento, 
               method = "class",
               control = rpart.control(maxdepth = best3$best_params[1], minsplit = best3$best_params[2], minbucket = best3$best_params[3], cp = 0, xval = 0))
-best_predicciones <- predict(best_tree3, newdata = validacion, type = "class")
+best_predicciones <- predict(best_tree3, newdata = testeo, type = "class")
 AUC(y_pred = best_predicciones, y_true = testeo$satisfaction)
 ```
 ```{r}
@@ -449,13 +448,15 @@ best_na_20$best_auc
 best_na_20$best_params
 ```
 ```{r}
-best_tree4 <- rpart(formula = satisfaction ~ Flight.Distance + Inflight.wifi.service + Ease.of.Online.booking + Food.and.drink + Online.boarding + Seat.comfort + Inflight.entertainment + On.board.service + Leg.room.service + Baggage.handling + Checkin.service + Inflight.service + Cleanliness, 
+best_tree_na_20 <- rpart(formula = satisfaction ~ ., 
               data = entrenamiento_na_20, 
-              method = "class")
-best_tree4
-
-best_predicciones <- predict(best_tree4, newdata = validacion_na_20, type = "class")
+              method = "class",
+              control = rpart.control(maxdepth = best_na_20$best_params[1], minsplit = best_na_20$best_params[2], minbucket = best_na_20$best_params[3], cp = 0, xval = 0))
+best_predicciones <- predict(best_tree_na_20, newdata = testeo_na_20, type = "class")
 AUC(y_pred = best_predicciones, y_true = testeo_na_20$satisfaction)
+```
+```{r}
+rpart.plot(best_tree_na_20)
 ```
 ```{r}
 best_na_50 <- buscar_hiperparametros(entrenamiento = entrenamiento_na_50, validacion = validacion_na_50, valores_maxdepth = valores_maxdepth, valores_minsplit = valores_minsplit, valores_minbucket = valores_minbucket)
@@ -466,11 +467,33 @@ best_na_50$best_auc
 best_na_50$best_params
 ```
 ```{r}
+best_tree_na_50 <- rpart(formula = satisfaction ~ ., 
+              data = entrenamiento_na_50, 
+              method = "class",
+              control = rpart.control(maxdepth = best_na_50$best_params[1], minsplit = best_na_50$best_params[2], minbucket = best_na_50$best_params[3], cp = 0, xval = 0))
+best_predicciones <- predict(best_tree_na_50, newdata = testeo_na_50, type = "class")
+AUC(y_pred = best_predicciones, y_true = testeo_na_50$satisfaction)
+```
+```{r}
+rpart.plot(best_tree_na_50)
+```
+```{r}
 best_na_75 <- buscar_hiperparametros(entrenamiento = entrenamiento_na_75, validacion = validacion_na_75, valores_maxdepth = valores_maxdepth, valores_minsplit = valores_minsplit, valores_minbucket = valores_minbucket)
 
 best_na_75$valores_auc
 best_na_75$best_auc
 best_na_75$best_params
+```
+```{r}
+best_tree_na_75 <- rpart(formula = satisfaction ~ ., 
+              data = entrenamiento_na_75, 
+              method = "class",
+              control = rpart.control(maxdepth = best_na_75$best_params[1], minsplit = best_na_75$best_params[2], minbucket = best_na_75$best_params[3], cp = 0, xval = 0))
+best_predicciones <- predict(best_tree_na_75, newdata = testeo_na_75, type = "class")
+AUC(y_pred = best_predicciones, y_true = testeo_na_75$satisfaction)
+```
+```{r}
+rpart.plot(best_tree_na_75)
 ```
 
 [^1]: https://www.kaggle.com/datasets/teejmahal20/airline-passenger-satisfaction
