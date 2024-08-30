@@ -279,7 +279,7 @@ Si vamos a la rama de la izquierda, vemos que caemos en un nodo donde predominan
 
 Si vamos a la rama de la derecha, caemos en una hoja terminal que predice los datos como satisfechos.
 
-**4. Evaluación del árbol de decisión básico**
+# 4. Evaluación del árbol de decisión básico
 
 ```{r}
 predictions_clase <- predict(tree, newdata = testeo, type = "class")
@@ -289,18 +289,31 @@ predictions_prob <- predict(tree, newdata = testeo, type = "prob")
 ```{r}
 ConfusionMatrix(y_pred = predictions_clase, y_true = testeo$satisfaction)
 ```
+Segun la matriz de confusion obtenida, podemos ver que a simple vista que el modelo predice correctamente la gran mayoría de las veces. Notamos que la categoria con mayor observaciones es True Negative, es decir los datos insatisfechos que se predijeron correctamente como insatisfechos. Este tiene 3729 datos, un 49.72%. La segunda categoría es True Positive, es decir los datos que son satisfechos que son predichos como tal, con el 38.746%. El porcentaje restante de los datos es predicho incorrectamente, con un 7.68% que fueron predichos como insatisfechos cuando estaban satisfechos, y un 3.853% fueron predichos como satisfechos cuando estaban insatisfechos.
+
 ```{r}
 Accuracy(y_pred = predictions_clase, y_true = testeo$satisfaction)
 ```
+
+Como mencionamos anteriormente, el modelo predice correctamente el 88.46667% de las observaciones, la suma de los porcentajes de True-Positive y True-Negative.
+
 ```{r}
 Precision(y_pred = predictions_clase, y_true = testeo$satisfaction)
 ```
+
+La precision indica el porcentaje de los datos que dije que son positivos, cuantos realmente lo son. En nuestro modelo la precision es del 92.80737%, por lo que el de todos los datos positivos le acerto al 0.92
+
 ```{r}
 Recall(y_pred = predictions_clase, y_true = testeo$satisfaction)
 ```
+
+Recall mide de los datos que efectivamente son positivos, cuantos dice el modelo que lo son. En este caso, nuestro modelo identifico el 86.62021% de los datos positivos.
+
 ```{r}
 F1_Score(y_pred = predictions_clase, y_true = testeo$satisfaction)
 ```
+
+Un F1-score de 0.8960711 indica que el modelo tiene un buen balance entre precision y recall.
 ```{r}
 AUC(y_pred = predictions_clase, y_true = testeo$satisfaction)
 ```
@@ -320,12 +333,22 @@ plot(roc_curve,
 abline(a=0, b=1, lty=2, col="red")
 ```
 
-**5. Optimización del modelo**
+AUC-ROC se refiere al area debajo de la curva ROC. Al tener un valor de AUC de 0.8878741 podemos decir que nuestro modelo distingue bien entre clases positivas y negativas, esto se asemeja con lo que se ve en el grafico.
+
+Analizando todas las metricas de performance, podemos concluir que nuestro modelo es muy eficiente al predecir la satisfacción de una persona, dado que se vio que tiene unabuena performance.
+
+# 5. Optimización del modelo
+
+Primero, definimos los valores que pueden tomar los hiperparamentros de maxdepth, minsplit y minbucket. La busqueda de los mejores hiperparametros se realizara con un grid search.
+
 ```{r}
-valores_maxdepth <- c(2, 5, 7, 10, 12, 15)
-valores_minsplit <- c(15, 20, 25, 30, 35)
-valores_minbucket <- c(10, 20, 30, 40, 50)
+valores_maxdepth <- seq(3, 30, by = 3)
+valores_minsplit <- seq(100, 1000, by = 100)
+valores_minbucket <- seq(100, 1000, by = 100)
 ```
+
+Para buscar los hiperparametros, implementamos una funcion buscar_hiperparametros que toma como parametros el conjunto de entrenamiento y el de validacion, al igua que los valores que podran tomar los hiperparametros mencionados anteriormente.
+
 ```{r}
 buscar_hiperparametros <- function(entrenamiento, validacion, valores_maxdepth, valores_minsplit, valores_minbucket){
   valores_auc <- c()
@@ -353,14 +376,19 @@ buscar_hiperparametros <- function(entrenamiento, validacion, valores_maxdepth, 
   }
   return (list(valores_auc = valores_auc, best_auc = best_auc, best_params = best_params))
 }
-
 ```
+
+Para implementar el grid search, hicimos un triple for anidado para probar todos los valores de los hiperparametros contra todos. En cada combinación, se modela un arbol, se genera predicciones para el conjunto de validación y se calcula el AUC. Si este valor es mayor al mejor AUC guardado, se guarda este nuevo AUC al igual que los valores de los parametros que hicieron que se llegue a este valor de area debajo de la curva. Una vez que se recorren todos los valores que se puede tomar, se devuelven los mejores.
+
 ```{r}
 best <- buscar_hiperparametros(entrenamiento = entrenamiento, validacion = validacion, valores_maxdepth = valores_maxdepth, valores_minsplit = valores_minsplit, valores_minbucket = valores_minbucket)
 best$valores_auc
 best$best_auc
 best$best_params
 ```
+
+Una vez que tenemos los valores que maximizan el AUC en validación, modelamos el arbol correspondiente a estos, generamos las predicciones para el conjunto de test y calculamos el AUC para los datos nuevos.
+
 ```{r}
 best_tree <- rpart(formula = satisfaction ~ Gender + Customer.Type + Age + Type.of.Travel + Class + Flight.Distance + Inflight.wifi.service + Departure.Arrival.time.convenient + Ease.of.Online.booking + Gate.location + Food.and.drink + Online.boarding + Seat.comfort + Inflight.entertainment + On.board.service + Leg.room.service + Baggage.handling + Checkin.service + Inflight.service + Cleanliness + Departure.Delay.in.Minutes + Arrival.Delay.in.Minutes, 
               data = entrenamiento, 
@@ -370,7 +398,7 @@ best_predicciones <- predict(best_tree, newdata = testeo, type = "class")
 AUC(y_pred = best_predicciones, y_true = testeo$satisfaction)
 ```
 
-**6. Interpretación de resultados**
+# 6. Interpretación de resultados
 ```{r}
 rpart.plot(best_tree)
 ```
