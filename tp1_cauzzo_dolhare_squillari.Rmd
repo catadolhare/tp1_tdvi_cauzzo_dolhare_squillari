@@ -322,7 +322,9 @@ buscar_hiperparametros <- function(entrenamiento, validacion, valores_maxdepth, 
                 control = rpart.control(maxdepth = valores_maxdepth[i], minsplit = valores_minsplit[j], minbucket = valores_minbucket[l], cp = 0, xval = 0))
       
         predicciones <- predict(tree2, newdata = validacion, type = "class")
-        auc <- AUC(y_pred = datos$predicciones, y_true = datos$validation_satisfaction)
+        validation_satisfaction <- validacion$satisfaction
+        datos_sin_na <- na.omit(data.frame(predicciones, validation_satisfaction))
+        auc <- AUC(y_pred = datos_sin_na$predicciones, y_true = datos_sin_na$validation_satisfaction)
         valores_auc <- c(valores_auc, auc)
       
         if (!is.na(auc) && auc > best_auc){
