@@ -233,10 +233,6 @@ Para construir el arbol, dividimos nuestro conjunto de datos en entrenamiento, c
 entrenamiento <- sample_datos[1:35000,]
 validacion <- sample_datos[35001:42500,]
 testeo <- sample_datos[42501:50000,]
-
-nrow(entrenamiento)
-nrow(validacion)
-nrow(testeo)
 ```
 
 Con la librería rpart generamos un arbol de decision a partir de los datos de entrenamiento, utilizando los hiperparamentros por defecto.
@@ -385,24 +381,26 @@ AUC(y_pred = best_predicciones, y_true = testeo$satisfaction)
 rpart.plot(best_tree2)
 ```
 ```{r}
+valores_maxdepth3 <- c(30)
+valores_minsplit3 <- c(1000)
 valores_minbucket3 <- c(1000, 2000, 3000, 4000, 5000)
 ```
 ```{r}
-best3 <- buscar_hiperparametros(entrenamiento = entrenamiento, validacion = validacion, valores_maxdepth = valores_maxdepth2, valores_minsplit = valores_minsplit2, valores_minbucket = valores_minbucket3)
+best3 <- buscar_hiperparametros(entrenamiento = entrenamiento, validacion = validacion, valores_maxdepth = valores_maxdepth3, valores_minsplit = valores_minsplit3, valores_minbucket = valores_minbucket3)
 best3$valores_auc
 best3$best_auc
 best3$best_params 
 ```
 ```{r}
-best_tree3 <- rpart(formula = satisfaction ~ Flight.Distance + Inflight.wifi.service + Ease.of.Online.booking + Food.and.drink + Online.boarding + Seat.comfort + Inflight.entertainment + On.board.service + Leg.room.service + Baggage.handling + Checkin.service + Inflight.service + Cleanliness, 
+best_tree3 <- rpart(formula = satisfaction ~ ., 
               data = entrenamiento, 
               method = "class",
-              control = rpart.control(maxdepth = best2$best_params[1], minsplit = best2$best_params[2], minbucket = best2$best_params[3], cp = 0, xval = 0))
-best_predicciones <- predict(best_tree2, newdata = validacion, type = "class")
+              control = rpart.control(maxdepth = best3$best_params[1], minsplit = best3$best_params[2], minbucket = best3$best_params[3], cp = 0, xval = 0))
+best_predicciones <- predict(best_tree3, newdata = validacion, type = "class")
 AUC(y_pred = best_predicciones, y_true = testeo$satisfaction)
 ```
 ```{r}
-rpart.plot(best_tree2)
+rpart.plot(best_tree3)
 ```
 **7. Análisis del impacto de los valores faltantes**
 ```{r}
