@@ -31,6 +31,7 @@ library(ROCR)
 # 2. Preparación de los datos
 
 Como nuestro data set venia con dos conjuntos de datos que sumaban un total de aproximadamente 130.000 observaciones, decidimos juntar todos los datos y elegir aleatoriamente 50.000 datos. Para hacer esto y que sea repicable los datos que se eligan, utilizamos una semilla.
+
 ```{r}
 datos_train <- read.csv("train.csv")
 datos_test <- read.csv("test.csv")
@@ -47,6 +48,7 @@ nrow(sample_datos)
 ```
 
 Para la variable satisfaction, que es lo que queremos predecir, originalmente era categorica, pero decidimos transformarla en numerica donde satisfied = 1 y neutral o disatisfied = 0. Esto lo hicimos para poder analizar graficamente las variables predictoras contra satisfaction, dado que no podiamos realizarlo si esta era categorica.
+
 ```{r}
 sample_datos$satisfaction <- as.numeric(as.factor(sample_datos$satisfaction)) - 1
 ```
@@ -55,13 +57,13 @@ Para poder ver las estadisticas descriptivas de las varibales, realizamos un sum
 
 ```{r}
 summary(sample_datos)
-
 ```
 A simple vista, vemos en la variable de satisfaction una mediana de 0 y una media 0.4338. Esto nos indica que hay mas pasajeros insatisfechos (0) que satisfechos (1).
 
 Por otro lado, notamos que las variables que tiene una escala de 0 a 5 tiene mediana y media en aproximadamente 3, esto significa que en su mayoria las personas se encuentran indiferente dentro de cada categoría.
 
 Para ver si las otras variables predictoras influyen en satisfacion hicimos una matriz de correlacion. Sabemos que correlacion no implica causalidad, no obstante, es bueno para visualizar y descartar variables que no influyen directamente en la satisfación de los pasajeros.
+
 ```{r, echo=FALSE}
 numeric_data <- sample_datos[, sapply(sample_datos, is.numeric)]
 cor_matrix <- cor(numeric_data)
@@ -72,7 +74,59 @@ corrplot(cor_matrix, method = "color",
          addCoef.col = "black",
          number.cex = 0.3)  
 ```
-Se puede ver que hay algunas variables que no tienen correlación con la satisfación, y son "departure arrival time convenient", "gate of location", "departure delay in minutes", "departure arrival in minutes". Como no podemos descartar que no haya causalidad, analizamos estas variables para ver si inciden sobre la satisfación. 
+
+En esta matriz nos importa ver los valores que hay en la fila/columna de satisfaction para ver como las variables predictoras se relacionan con la variable que queremos predecir. Sin embargo, notamos que existen correlaciones entre variables predictoras.
+
+Se puede ver que hay algunas variables que no tienen correlación con la satisfación, estas son: "Departure Arrival time convenient", "Gate of location", "Departure Delay in minutes". Por otro lado, notamos que hay variables que tienen una correlación alta con la satisfacción, como lo es Online Boarding o Inflight entretainment.
+
+Para analizar si realmente estas variables con mucha correlación realmente influyen en la satisfacción del pasajero, graficamos un histograma del Online Boarding separando entre los pasajeros que estaban satisfechos o insatisfechos.
+
+```{r, echo=FALSE}
+delay_satisfecho <- sample_datos$Online.boarding[sample_datos$satisfaction == 1]
+delay_insatisfecho <- sample_datos$Online.boarding[sample_datos$satisfaction == 0]
+
+density_satisfecho <- density(delay_satisfecho, na.rm = TRUE)
+density_insatisfecho <- density(delay_insatisfecho, na.rm = TRUE)
+
+# Crear el gráfico
+plot(density_satisfecho, 
+     main = "Comparación de Online Boarding por Satisfacción", 
+     xlab = "Online Boarding", 
+     ylab = "Density", 
+     col = "red", 
+     lwd = 2, 
+     xlim = c(0, 5))
+
+polygon(density_satisfecho, col = rgb(1, 0, 0, 0.5), border = "red")
+
+# Rellenar la densidad para el grupo insatisfecho
+polygon(density_insatisfecho, col = rgb(0, 0, 1, 0.5), border = "blue")
+
+# Agregar leyenda
+legend("topright", 
+       legend = c("Satisfechos", "Insatisfechos"), 
+       fill = c(rgb(1, 0, 0, 0.5), rgb(0, 0, 1, 0.5)))
+```
+
+Podemos ver que las densidades de pasajeros satisfechos e insatisfechos estan separadas. Los insatisfechos tuvieron una puntuación en Online Boarding más baja que los satisfechos. Viendo estas distribuciones, podemos asumir que esta variable tendra importancia a la hora de generar un modelo.
+
+Por otro lado, como la matriz de confusión se calcula solo sobre las variables numericas, no podemos descartar que las variables categoricas influyan sobre la satisfacción. 
+
+Para analizar una de ellas, Type of Travel, realizamos dos histogramas, dividios por si era un Personal Travel o un Business Travel.
+
+```{r, echo=FALSE}
+library(ggplot2)
+ggplot(data = sample_datos) +
+  geom_histogram(mapping = aes(x = satisfaction, fill = Type.of.Travel),
+                 colour = "black", binwidth = 0.5) +
+  scale_fill_viridis_d() +
+  facet_wrap(~ Type.of.Travel)
+```
+
+En este, podemos ver que existe una clara división entre el tipo de viaje, dado que en Personal Travel existen una diferencia muy clara donde predomina la insatisfacción, y en Business Travel, no hay mucha diferencia, pero predomina la satisfacción. De esto, podemos concluir que las personas que viajan por placer o temas personales suelen estar más insatisfechos que los que viajan por negocios. 
+
+Por otro lado, volviendo a las variables que no presentaron correlación con la satisfacción, graficamos la densidad de Departure Arrival time convenient separado por satisfacción para ver si realmente no influyen en la satisfacción.
+
 ```{r, echo=FALSE}
 delay_satisfecho <- sample_datos$Departure.Arrival.time.convenient[sample_datos$satisfaction == 1]
 delay_insatisfecho <- sample_datos$Departure.Arrival.time.convenient[sample_datos$satisfaction == 0]
@@ -82,7 +136,7 @@ density_insatisfecho <- density(delay_insatisfecho, na.rm = TRUE)
 
 # Crear el gráfico
 plot(density_satisfecho, 
-     main = "Comparación de Densidades de Retrasos por Satisfacción", 
+     main = "Comparación de Departure Arrival time convenient", 
      xlab = "Departure Arrival Time Convenient", 
      ylab = "Density", 
      col = "red", 
@@ -100,48 +154,7 @@ legend("topright",
        fill = c(rgb(1, 0, 0, 0.5), rgb(0, 0, 1, 0.5)))
 ```
 
-Por la misma razon de que correlación on implica causalidad, decidimos probar en algunas variables si existia este tipo de relación. El siguiente grafico muestra la relación entre la variable "Type of Travel" y "satisfaction":
-```{r, echo=FALSE}
-library(ggplot2)
-ggplot(data = sample_datos) +
-  geom_histogram(mapping = aes(x = satisfaction, fill = Type.of.Travel),
-                 colour = "black", binwidth = 0.5) +
-  scale_fill_viridis_d() +
-  facet_wrap(~ Type.of.Travel)
-```
-En este, podemos ver que existe una clara división entre el tipo de viaje. Podemos concluir que las personas que viajan por placer o temas personales suelen estar más insatisfechos que los que viajan por negocios. Viendo la distribución podemos ver que es una variable que realmente influye en lo que queremos predecir. 
-
-En el siguiente histograma, queremos demostrar la relación entre la variable "Online boarding" y "satisfaction".
-```{r, echo=FALSE}
-log_delay_satisfecho <- log1p(delay_satisfecho)
-log_delay_insatisfecho <- log1p(delay_insatisfecho)
-
-delay_satisfecho <- sample_datos$Online.boarding[sample_datos$satisfaction == 1]
-delay_insatisfecho <- sample_datos$Online.boarding[sample_datos$satisfaction == 0]
-
-density_satisfecho <- density(delay_satisfecho, na.rm = TRUE)
-density_insatisfecho <- density(delay_insatisfecho, na.rm = TRUE)
-
-# Crear el gráfico
-plot(density_satisfecho, 
-     main = "Comparación de Densidades de Retrasos por Satisfacción", 
-     xlab = "Online Boarding", 
-     ylab = "Density", 
-     col = "red", 
-     lwd = 2, 
-     xlim = c(0, 5))
-
-polygon(density_satisfecho, col = rgb(1, 0, 0, 0.5), border = "red")
-
-# Rellenar la densidad para el grupo insatisfecho
-polygon(density_insatisfecho, col = rgb(0, 0, 1, 0.5), border = "blue")
-
-# Agregar leyenda
-legend("topright", 
-       legend = c("Satisfechos", "Insatisfechos"), 
-       fill = c(rgb(1, 0, 0, 0.5), rgb(0, 0, 1, 0.5)))
-```
-Vemos que las distribuciones entre ambos son diferentes por lo que entendemos a "online boarding" como una variable influyente en la satisfacción del pasajero. Tiene sentido el grafico ya que los pasajeros satisfechos puntuan con una nota alta el online boarding mientras que los pasajeros insatisfechos puntuan con una nota más baja.
+En este caso, podemos ver que las dos densidades en todo momento estan muy pegadas y no se nota una clara diferencia entre ambas. En función de esto, podemos decir que esta variable predictora no sera relevante para la predicción de satisfacción de un pasajero, y probablemente no se utilice como corte en un arbol de decisión.
 
 # 3. Construcción de un árbol de decisión básico
 
@@ -206,6 +219,7 @@ predictions_prob <- predict(tree, newdata = testeo, type = "prob")
 ```{r}
 ConfusionMatrix(y_pred = predictions_clase, y_true = testeo$satisfaction)
 ```
+
 Segun la matriz de confusion obtenida, podemos ver que a simple vista que el modelo predice correctamente la gran mayoría de las veces. Notamos que la categoria con mayor observaciones es True Negative, es decir los datos insatisfechos que se predijeron correctamente como insatisfechos. Este tiene 3729 datos, un 49.72%. La segunda categoría es True Positive, es decir los datos que son satisfechos que son predichos como tal, con el 38.746%. El porcentaje restante de los datos es predicho incorrectamente, con un 7.68% que fueron predichos como insatisfechos cuando estaban satisfechos, y un 3.853% fueron predichos como satisfechos cuando estaban insatisfechos.
 
 ```{r}
@@ -231,9 +245,11 @@ F1_Score(y_pred = predictions_clase, y_true = testeo$satisfaction)
 ```
 
 Un F1-score de 0.8960711 indica que el modelo tiene un buen balance entre precision y recall.
+
 ```{r}
 AUC(y_pred = predictions_clase, y_true = testeo$satisfaction)
 ```
+
 ```{r}
 pred <- prediction(as.numeric(predictions_clase), as.numeric(testeo$satisfaction))
 roc_curve <- performance(pred, "tpr", "fpr")
@@ -299,10 +315,118 @@ Para implementar el grid search, hicimos un triple for anidado para probar todos
 
 ```{r}
 best <- buscar_hiperparametros(entrenamiento = entrenamiento, validacion = validacion, valores_maxdepth = valores_maxdepth, valores_minsplit = valores_minsplit, valores_minbucket = valores_minbucket)
-best$valores_auc
+
 best$best_auc
 best$best_params
 ```
+
+```{r}
+valores_auc_depth <- c()
+
+for (i in 1:length(valores_maxdepth)){
+  tree_depth <- rpart(formula = satisfaction ~ Gender + Customer.Type + Age + Type.of.Travel + Class + Flight.Distance + Inflight.wifi.service + Departure.Arrival.time.convenient + Ease.of.Online.booking + Gate.location + Food.and.drink + Online.boarding + Seat.comfort + Inflight.entertainment + On.board.service + Leg.room.service + Baggage.handling + Checkin.service + Inflight.service + Cleanliness + Departure.Delay.in.Minutes + Arrival.Delay.in.Minutes, 
+                data = entrenamiento, 
+                method = "class",
+                control = rpart.control(maxdepth = valores_maxdepth[i], minsplit = best$best_params[2], minbucket = best$best_params[3], cp = 0, xval = 0))
+      
+  predicciones_depth <- predict(tree_depth, newdata = validacion, type = "class")
+
+  auc_depth <- AUC(y_pred = predicciones_depth, y_true = validacion$satisfaction)
+  valores_auc_depth <- c(valores_auc_depth, auc_depth)
+}
+
+valores_auc_depth
+```
+
+```{r}
+resultados <- data.frame(
+  maxdepth = seq(3, 30, by = 3),
+  auc = valores_auc_depth
+)
+
+ggplot(resultados, aes(x = maxdepth, y = auc)) +
+  geom_line(color = "green") +
+  geom_point(color = "pink") +
+  labs(title = "AUC-ROC en función de la profundidad máxima",
+       x = "maxdepth",
+       y = "AUC-ROC") +
+  theme_minimal()
+
+```
+
+Podemos ver que a medida que el maxdepth aumenta, hay mejor performance. Sin embargo, esta relación no es lineal, a partir de un maxdepth de 15 aproximadamente el valor de AUC es asintotico a 0.93, alcanzando un maximo en la peformance del modelo. A mayor profundida, pueden haber más diviciones en el arbol y se puede ajustar mejor a los datos.
+
+```{r}
+valores_auc_split <- c()
+
+for (i in 1:length(valores_minsplit)){
+  tree_split <- rpart(formula = satisfaction ~ Gender + Customer.Type + Age + Type.of.Travel + Class + Flight.Distance + Inflight.wifi.service + Departure.Arrival.time.convenient + Ease.of.Online.booking + Gate.location + Food.and.drink + Online.boarding + Seat.comfort + Inflight.entertainment + On.board.service + Leg.room.service + Baggage.handling + Checkin.service + Inflight.service + Cleanliness + Departure.Delay.in.Minutes + Arrival.Delay.in.Minutes, 
+                data = entrenamiento, 
+                method = "class",
+                control = rpart.control(maxdepth = best$best_params[1], minsplit = valores_minsplit[i], minbucket = best$best_params[3], cp = 0, xval = 0))
+      
+  predicciones_split <- predict(tree_split, newdata = validacion, type = "class")
+
+  auc_split <- AUC(y_pred = predicciones_split, y_true = validacion$satisfaction)
+  valores_auc_split <- c(valores_auc_split, auc_split)
+}
+
+valores_auc_split
+```
+
+```{r}
+resultados_split <- data.frame(
+  minsplit = seq(100, 1000, by = 100),
+  auc = valores_auc_split
+)
+
+ggplot(resultados_split, aes(x = minsplit, y = auc)) +
+  geom_line(color = "green") +
+  geom_point(color = "pink") +
+  labs(title = "AUC-ROC en función de minsplit",
+       x = "minsplit",
+       y = "AUC-ROC") +
+  theme_minimal()
+
+```
+
+Podemos ver que existe un a relación inversamente proporcional entre el minsplit y el AUC, es decir, a medida que se aumenta el minsplit, la performance disminuye. Esto tiene sentido, dado que cada vez se necesitan más observaciones para dividir un nodo, por lo que se ajusta cada vez peor a los datos.
+
+```{r}
+valores_auc_bucket <- c()
+
+for (i in 1:length(valores_minbucket)){
+  tree_bucket <- rpart(formula = satisfaction ~ Gender + Customer.Type + Age + Type.of.Travel + Class + Flight.Distance + Inflight.wifi.service + Departure.Arrival.time.convenient + Ease.of.Online.booking + Gate.location + Food.and.drink + Online.boarding + Seat.comfort + Inflight.entertainment + On.board.service + Leg.room.service + Baggage.handling + Checkin.service + Inflight.service + Cleanliness + Departure.Delay.in.Minutes + Arrival.Delay.in.Minutes, 
+                data = entrenamiento, 
+                method = "class",
+                control = rpart.control(maxdepth = best$best_params[1], minsplit = best$best_params[2], minbucket = valores_minbucket[i], cp = 0, xval = 0))
+      
+  predicciones_bucket <- predict(tree_bucket, newdata = validacion, type = "class")
+
+  auc_bucket <- AUC(y_pred = predicciones_bucket, y_true = validacion$satisfaction)
+  valores_auc_bucket <- c(valores_auc_bucket, auc_bucket)
+}
+
+valores_auc_bucket
+```
+
+```{r}
+resultados_bucket <- data.frame(
+  minbucket = seq(100, 1000, by = 100),
+  auc = valores_auc_bucket
+)
+
+ggplot(resultados_bucket, aes(x = minbucket, y = auc)) +
+  geom_line(color = "green") +
+  geom_point(color = "pink") +
+  labs(title = "AUC-ROC en función de minbucket",
+       x = "minbucket",
+       y = "AUC-ROC") +
+  theme_minimal()
+
+```
+
+Nuevamente podemos ver que existe un a relación inversamente proporcional entre el minbucket y el AUC, es decir, a medida que se aumenta el minbucket, la performance disminuye. Esto tiene sentido, dado que cada vez se necesitan más observaciones para tener una hoja terminal, por lo que se ajusta cada vez peor a los datos.
 
 Una vez que tenemos los valores que maximizan el AUC en validación, modelamos el arbol correspondiente a estos, generamos las predicciones para el conjunto de test y calculamos el AUC para los datos nuevos.
 
@@ -332,7 +456,7 @@ importancia_variables_best <- best_tree$variable.importance
 importancia_variables_best
 ```
 
-Podemos ver que las variables predictoras más importantes son Online Boarding, Inflight Wifi Service y Seat Comfort. Esto se correlaciona con el grafico dado que son los primeros cortes que figuran en el arbol y son los que más cortes realizan.
+Podemos ver que las variables predictoras más importantes son Online Boarding, Inflight Wifi Service, Seat Comfort y Ease of Online Booking. Esto se correlaciona con el grafico dado que son los primeros cortes que figuran en el arbol y son los que más cortes realizan.
 
 ```{r}
 importancia_variables_basico <- tree$variable.importance
@@ -340,7 +464,7 @@ importancia_variables_basico <- tree$variable.importance
 importancia_variables_basico
 ```
 
-Si lo comparamos con el arbol basico, notamos primero que todos aumentaron su valor en el optimizado y que aparecen las mismas categorías en ambas solo que en el optimizado se incluye Check-in service. Por otro lado, podemos ver que el orden de importancia cambia. On board service y Leg room service suben dos posiciones y  Baggage handling baja dos posiciones. Con esto, podemos ver que la importancia de las variables va a cambiar dependiendo de los hiperparametros que tomen los modelos.
+Si lo comparamos con el arbol basico, notamos que las primeras cuatro variables predictoras son las mismas. Esto quiere decir que son las que más influyen sin importar que valores de hiperparametros se utilicen. Por otro lado, notamos que en el arbol optimizado los valores de la importancia son mayores y que hay más variables que se consideran importantes.
 
 **7. Análisis del impacto de los valores faltantes**
 
@@ -393,7 +517,6 @@ Para cada uno de los datasets, buscamos los hiperparámetros a través de la fun
 ```{r}
 best_na_20 <- buscar_hiperparametros(entrenamiento = entrenamiento_na_20, validacion = validacion_na_20, valores_maxdepth = valores_maxdepth, valores_minsplit = valores_minsplit, valores_minbucket = valores_minbucket)
 
-best_na_20$valores_auc
 best_na_20$best_auc
 best_na_20$best_params
 ```
@@ -412,8 +535,6 @@ rpart.plot(best_tree_na_20)
 ```{r}
 best_na_50 <- buscar_hiperparametros(entrenamiento = entrenamiento_na_50, validacion = validacion_na_50, valores_maxdepth = valores_maxdepth, valores_minsplit = valores_minsplit, valores_minbucket = valores_minbucket)
 
-
-best_na_50$valores_auc
 best_na_50$best_auc
 best_na_50$best_params
 ```
@@ -432,7 +553,6 @@ rpart.plot(best_tree_na_50)
 ```{r}
 best_na_75 <- buscar_hiperparametros(entrenamiento = entrenamiento_na_75, validacion = validacion_na_75, valores_maxdepth = valores_maxdepth, valores_minsplit = valores_minsplit, valores_minbucket = valores_minbucket)
 
-best_na_75$valores_auc
 best_na_75$best_auc
 best_na_75$best_params
 ```
@@ -465,5 +585,21 @@ ggplot(df_auc, aes(x = porcentajes, y = auc_faltantes)) +
        y = "AUC") +
   theme_minimal()
 ```
+
+#8. Conclusión
+
+A lo largo de este trabajo, modelamos arboles de decisión para poder predecir la satisfacción de un pasajero a partir de un conjunto de variables predictoras. 
+
+Con el modelo basico, obtuvimos buenas metricas de performance antes datos nuevos, obteniendo un accuracy de 88%. Esto, con el resto de las metricas, indica que el modelo predice correctamente en la gran mayoría de las veces. Sin embargo, no es perfecto dado que, a pesar de tener una precision alta, existe un porcentaje de datos que el modelo no predice bien. En cuanto a las variables predictoras que cortan los nodos son las que más correlación tienen con la variable a predecir.
+
+En cuanto a la optimización del modelo, notamos que para maxdepth el se tiende a tomar con el valor más grande y en minsplit y minbucket se tiende a tomar el valor más chico. Esto tiene sentido ya que, a más profundida, más cortes se pueden tener y mejor adaptar el arbol a los valores de entrenamiento; a menor minsplit, se necesita una menor cantidad de observaciones para dividir un nodo, por lo que se podra dividir más facilmente y tener aun más diviciones; a menor minbucket, se necesitaran menos observaciones para tener un hoja terminal, por lo que se tendran más hojas termiales. Esto lleva a que el arbol se pueda adaptar mejor a los datos. Al graficar como varia el AUC dependiendo de cada variable, pudimos afirmar esta idea dado que maxdepth tiene una relación directamente proporcional al AUC y minsplit y minbucket tienen un relacion inversamente proporcional al AUC.
+
+Como la optimización se basa en el AUC de validación, los resultados que arroje este pueden llegar a estar overfiteados al mismo. Sin embargo, al calcular el AUC sobre datos nuevos con los mejores parametros, notamos valores muy similares en la metrica de performance, y más alta que en el modelo basico.
+
+En cuanto a la optimización del modelo cuando se presetan datos faltantes, npudimos observar que a medida que aumenta el porcentaje de datos faltantes, disminuye el AUC. Esto tiene sentido porque al tener una menor cantidad de datos el modelo tiene cada vez menos información con la que trabajar, empeorando e arbol de decision.
+
+Relacionado a esto, notamos que cuando se presentan los datos faltantes no cumplen tanto con lo dicho anteriormente sobre los hiperparametros. Con esto nos referimos que el maxdepth no necesariamente es el mas grande, por ejemplo con 20% de datos faltantes se utiliza un maxdepth de 9.
+
+Aunque los modelos que se obtuvieron tienen metricas de performance muy favorables, se podría agregar al analisis implementar ingeniería de atributos para ver como estas influyen en los modelos y si mejoran mucho más el AUC o queda estancado en cierto valor.
 
 [^1]: https://www.kaggle.com/datasets/teejmahal20/airline-passenger-satisfaction
