@@ -74,11 +74,8 @@ corrplot(cor_matrix, method = "color",
 ```
 Se puede ver que hay algunas variables que no tienen correlación con la satisfación, y son "departure arrival time convenient", "gate of location", "departure delay in minutes", "departure arrival in minutes". Como no podemos descartar que no haya causalidad, analizamos estas variables para ver si inciden sobre la satisfación. 
 ```{r, echo=FALSE}
-par(mfrow = c(1, 2), mar = c(5, 5, 4, 2), cex = 1.2)
-
-# Filtrar los datos por nivel de satisfacción
-delay_satisfecho <- sample_datos$Departure.Delay.in.Minutes[sample_datos$satisfaction == 1]
-delay_insatisfecho <- sample_datos$Departure.Delay.in.Minutes[sample_datos$satisfaction == 0]
+delay_satisfecho <- sample_datos$Departure.Arrival.time.convenient[sample_datos$satisfaction == 1]
+delay_insatisfecho <- sample_datos$Departure.Arrival.time.convenient[sample_datos$satisfaction == 0]
 
 density_satisfecho <- density(delay_satisfecho, na.rm = TRUE)
 density_insatisfecho <- density(delay_insatisfecho, na.rm = TRUE)
@@ -86,105 +83,22 @@ density_insatisfecho <- density(delay_insatisfecho, na.rm = TRUE)
 # Crear el gráfico
 plot(density_satisfecho, 
      main = "Comparación de Densidades de Retrasos por Satisfacción", 
-     xlab = "Departure Delay in Minutes", 
+     xlab = "Departure Arrival Time Convenient", 
      ylab = "Density", 
      col = "red", 
      lwd = 2, 
-     xlim = c(0, max(c(delay_satisfecho, delay_insatisfecho), na.rm = TRUE)))
+     xlim = c(0, 5))
 
-# Agregar la densidad del grupo insatisfecho
-lines(density_insatisfecho, col = "blue", lwd = 2)
+polygon(density_satisfecho, col = rgb(1, 0, 0, 0.5), border = "red")
+
+# Rellenar la densidad para el grupo insatisfecho
+polygon(density_insatisfecho, col = rgb(0, 0, 1, 0.5), border = "blue")
 
 # Agregar leyenda
 legend("topright", 
        legend = c("Satisfechos", "Insatisfechos"), 
-       col = c("red", "blue"), 
-       lwd = 2)
+       fill = c(rgb(1, 0, 0, 0.5), rgb(0, 0, 1, 0.5)))
 ```
-
-```{r, echo=FALSE}
-par(mfrow = c(1, 2), mar = c(5, 5, 4, 2), cex = 1.2)
-
-# Filtrar los datos por nivel de satisfacción
-arrival_satisfecho <- sample_datos$Arrival.Delay.in.Minutes[sample_datos$satisfaction == 1]
-arrival_insatisfecho <- sample_datos$Arrival.Delay.in.Minutes[sample_datos$satisfaction == 0]
-
-hist(arrival_satisfecho, 
-     probability = TRUE, 
-     main = "Satisfechos", 
-     xlab = "Arrival Delay in Minutes", 
-     xlim = c(0, max(sample_datos$Arrival.Delay.in.Minutes, na.rm = TRUE)), 
-     ylim = c(0, 0.04), 
-     col = "red", 
-     border = "black")
-
-# Histograma para los clientes insatisfechos
-hist(arrival_insatisfecho, 
-     probability = TRUE, 
-     main = "Insatisfechos", 
-     xlab = "Arrival Delay in Minutes", 
-     xlim = c(0, max(sample_datos$Arrival.Delay.in.Minutes, na.rm = TRUE)), 
-     ylim = c(0, 0.04), 
-     col = "blue", 
-     border = "black")
-```
-
-En cuanto a ambos delays, notamos que no afectan a la satisfacción de una persona, dado que la distribución es muy similar entre los satisfechos y no satisfechos.
-
-```{r, echo=FALSE}
-par(mfrow = c(1, 2), mar = c(5, 5, 4, 2), cex = 1.2)
-
-# Filtrar los datos por nivel de satisfacción
-departure_arrival_satisfecho <- sample_datos$Departure.Arrival.time.convenient[sample_datos$satisfaction == 1]
-departure_arrival_insatisfecho <- sample_datos$Departure.Arrival.time.convenient[sample_datos$satisfaction == 0]
-
-hist(departure_arrival_satisfecho, 
-     probability = TRUE, 
-     main = "Satisfechos", 
-     xlab = "Departure arrival time convenient", 
-     xlim = c(0, max(sample_datos$Departure.Arrival.time.convenient, na.rm = TRUE)), 
-     ylim = c(0, 1), 
-     col = "red", 
-     border = "black")
-
-# Histograma para los clientes insatisfechos
-hist(departure_arrival_insatisfecho, 
-     probability = TRUE, 
-     main = "Insatisfechos", 
-     xlab = "Departure arrival time convenient", 
-     xlim = c(0, max(sample_datos$Departure.Arrival.time.convenient, na.rm = TRUE)), 
-     ylim = c(0, 1), 
-     col = "blue", 
-     border = "black")
-```
-
-```{r, echo=FALSE}
-par(mfrow = c(1, 2), mar = c(5, 5, 4, 2), cex = 1.2)
-
-# Filtrar los datos por nivel de satisfacción
-gate_satisfecho <- sample_datos$Gate.location[sample_datos$satisfaction == 1]
-gate_insatisfecho <- sample_datos$Gate.location[sample_datos$satisfaction == 0]
-
-hist(gate_satisfecho, 
-     probability = TRUE, 
-     main = "Satisfechos", 
-     xlab = "Gate location", 
-     xlim = c(0, max(sample_datos$Departure.Arrival.time.convenient, na.rm = TRUE)), 
-     ylim = c(0, 2), 
-     col = "red", 
-     border = "black")
-
-# Histograma para los clientes insatisfechos
-hist(gate_insatisfecho, 
-     probability = TRUE, 
-     main = "Insatisfechos", 
-     xlab = "Gate location", 
-     xlim = c(0, max(sample_datos$Departure.Arrival.time.convenient, na.rm = TRUE)), 
-     ylim = c(0, 2), 
-     col = "blue", 
-     border = "black")
-```
-Al graficar estas 4 variables, podemos ver que la ditribución entre pasajeros satisfechos e insatisfechos es muy similar por lo que concluimos que no impactan en lo que queremos predecir.
 
 Por la misma razon de que correlación on implica causalidad, decidimos probar en algunas variables si existia este tipo de relación. El siguiente grafico muestra la relación entre la variable "Type of Travel" y "satisfaction":
 ```{r, echo=FALSE}
@@ -199,30 +113,33 @@ En este, podemos ver que existe una clara división entre el tipo de viaje. Pode
 
 En el siguiente histograma, queremos demostrar la relación entre la variable "Online boarding" y "satisfaction".
 ```{r, echo=FALSE}
-par(mfrow = c(1, 2), mar = c(5, 5, 4, 2), cex = 1.2)
+log_delay_satisfecho <- log1p(delay_satisfecho)
+log_delay_insatisfecho <- log1p(delay_insatisfecho)
 
-# Filtrar los datos por nivel de satisfacción
-onlineb_satisfecho <- sample_datos$Online.boarding[sample_datos$satisfaction == 1]
-onlineb_insatisfecho <- sample_datos$Online.boarding[sample_datos$satisfaction == 0]
+delay_satisfecho <- sample_datos$Online.boarding[sample_datos$satisfaction == 1]
+delay_insatisfecho <- sample_datos$Online.boarding[sample_datos$satisfaction == 0]
 
-hist(onlineb_satisfecho, 
-     probability = TRUE, 
-     main = "Satisfechos", 
-     xlab = "Online boarding", 
-     xlim = c(0, max(sample_datos$Online.boarding, na.rm = TRUE)), 
-     ylim = c(0, 1), 
-     col = "pink", 
-     border = "black")
+density_satisfecho <- density(delay_satisfecho, na.rm = TRUE)
+density_insatisfecho <- density(delay_insatisfecho, na.rm = TRUE)
 
-# Histograma para los clientes insatisfechos
-hist(onlineb_insatisfecho, 
-     probability = TRUE, 
-     main = "Insatisfechos", 
-     xlab = "Online boarding", 
-     xlim = c(0, max(sample_datos$Online.boarding, na.rm = TRUE)), 
-     ylim = c(0, 1), 
-     col = "green", 
-     border = "black")
+# Crear el gráfico
+plot(density_satisfecho, 
+     main = "Comparación de Densidades de Retrasos por Satisfacción", 
+     xlab = "Online Boarding", 
+     ylab = "Density", 
+     col = "red", 
+     lwd = 2, 
+     xlim = c(0, 5))
+
+polygon(density_satisfecho, col = rgb(1, 0, 0, 0.5), border = "red")
+
+# Rellenar la densidad para el grupo insatisfecho
+polygon(density_insatisfecho, col = rgb(0, 0, 1, 0.5), border = "blue")
+
+# Agregar leyenda
+legend("topright", 
+       legend = c("Satisfechos", "Insatisfechos"), 
+       fill = c(rgb(1, 0, 0, 0.5), rgb(0, 0, 1, 0.5)))
 ```
 Vemos que las distribuciones entre ambos son diferentes por lo que entendemos a "online boarding" como una variable influyente en la satisfacción del pasajero. Tiene sentido el grafico ya que los pasajeros satisfechos puntuan con una nota alta el online boarding mientras que los pasajeros insatisfechos puntuan con una nota más baja.
 
@@ -427,7 +344,7 @@ Si lo comparamos con el arbol basico, notamos primero que todos aumentaron su va
 
 **7. Análisis del impacto de los valores faltantes**
 
-
+Para generar datasets con datos faltantes, creamos una nueva función reemplazar_na, a la cual le pasamos por parámetros los datos y el porcentaje de NA que queríamos tener. La idea de esta función era recorrer todas las columnas del conjunto de datos, excluyendo a la columna correspondien te a la variable a predecir (Satisfaction). Por cada columna, calculamos la cantidad de NA que ya tiene, la cantidad de NA que se quieren tener y la diferencia para saber cuantos más hay que agregar. Si esta diferencia es mayor a 0, entonces agregamos los NA faltantes a la columna de manera aleatoria.
 
 ```{r}
 reemplazar_na <- function(data, porcentaje_na) {
@@ -454,6 +371,9 @@ reemplazar_na <- function(data, porcentaje_na) {
   return(data)
 }
 ```
+
+Utilizamos esta función para generar datasets con datos con el 20%, 50% y 75% de datos faltantes.
+
 ```{r}
 entrenamiento_na_20 <- reemplazar_na(entrenamiento, 0.20)
 validacion_na_20 <- reemplazar_na(validacion, 0.20)
@@ -467,8 +387,11 @@ entrenamiento_na_75 <- reemplazar_na(entrenamiento, 0.75)
 validacion_na_75 <- reemplazar_na(validacion, 0.75)
 testeo_na_75 <- reemplazar_na(testeo, 0.75)
 ```
+
+Para cada uno de los datasets, buscamos los hiperparámetros a través de la función creada anteriormente, para encontrar los valores de los hiperparámetros que lo optimizan.
+
 ```{r}
-best_na_20 <- buscar_hiperparametros(entrenamiento = entrenamiento_na_20, validacion = validacion_na_20, valores_maxdepth = valores_maxdepth2, valores_minsplit = valores_minsplit2, valores_minbucket = valores_minbucket2)
+best_na_20 <- buscar_hiperparametros(entrenamiento = entrenamiento_na_20, validacion = validacion_na_20, valores_maxdepth = valores_maxdepth, valores_minsplit = valores_minsplit, valores_minbucket = valores_minbucket)
 
 best_na_20$valores_auc
 best_na_20$best_auc
@@ -480,7 +403,8 @@ best_tree_na_20 <- rpart(formula = satisfaction ~ .,
               method = "class",
               control = rpart.control(maxdepth = best_na_20$best_params[1], minsplit = best_na_20$best_params[2], minbucket = best_na_20$best_params[3], cp = 0, xval = 0))
 best_predicciones <- predict(best_tree_na_20, newdata = testeo_na_20, type = "class")
-AUC(y_pred = best_predicciones, y_true = testeo_na_20$satisfaction)
+auc_20 <- AUC(y_pred = best_predicciones, y_true = testeo_na_20$satisfaction)
+auc_faltantes <- c(auc_20)
 ```
 ```{r}
 rpart.plot(best_tree_na_20)
@@ -499,7 +423,8 @@ best_tree_na_50 <- rpart(formula = satisfaction ~ .,
               method = "class",
               control = rpart.control(maxdepth = best_na_50$best_params[1], minsplit = best_na_50$best_params[2], minbucket = best_na_50$best_params[3], cp = 0, xval = 0))
 best_predicciones <- predict(best_tree_na_50, newdata = testeo_na_50, type = "class")
-AUC(y_pred = best_predicciones, y_true = testeo_na_50$satisfaction)
+auc_50 <- AUC(y_pred = best_predicciones, y_true = testeo_na_50$satisfaction)
+auc_faltantes <- c(auc_faltantes, auc_50)
 ```
 ```{r}
 rpart.plot(best_tree_na_50)
@@ -517,10 +442,28 @@ best_tree_na_75 <- rpart(formula = satisfaction ~ .,
               method = "class",
               control = rpart.control(maxdepth = best_na_75$best_params[1], minsplit = best_na_75$best_params[2], minbucket = best_na_75$best_params[3], cp = 0, xval = 0))
 best_predicciones <- predict(best_tree_na_75, newdata = testeo_na_75, type = "class")
-AUC(y_pred = best_predicciones, y_true = testeo_na_75$satisfaction)
+auc_75 <- AUC(y_pred = best_predicciones, y_true = testeo_na_75$satisfaction)
+auc_faltantes <- c(auc_faltantes, auc_75)
 ```
 ```{r}
 rpart.plot(best_tree_na_75)
+```
+
+Pudimos observar que existe una relación inversa entre el porcentaje de datos faltantes y el AUC: mientras más datos faltantes tiene el conjunto, menor es el AUC.
+
+```{r}
+df_auc <- data.frame(
+  porcentajes <- c(20, 50, 75),
+  auc_faltantes
+)
+
+ggplot(df_auc, aes(x = porcentajes, y = auc_faltantes)) +
+  geom_line(color = "blue") +  # Línea que conecta los puntos
+  geom_point(size = 3, color = "red") +  # Puntos de AUC
+  labs(title = "Relación entre AUC y Porcentaje de Datos Faltantes",
+       x = "Porcentaje de Datos Faltantes",
+       y = "AUC") +
+  theme_minimal()
 ```
 
 [^1]: https://www.kaggle.com/datasets/teejmahal20/airline-passenger-satisfaction
